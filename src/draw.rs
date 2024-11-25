@@ -87,7 +87,7 @@ impl Buffer {
     /// Creates a buffer, filled with black
     pub fn new(width: usize, height: usize) -> Rc<Self> {
         Rc::new(Self {
-            data: RefCell::new(vec![0; width * height * 3]),
+            data: RefCell::new(vec![255; width * height * 3]),
             width,
             height,
         })
