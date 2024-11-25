@@ -75,6 +75,14 @@ impl Rgba {
         b: 255,
         a: 255,
     };
+    pub fn set_a(self, a: u8) -> Self {
+        Self {
+            r: self.r,
+            g: self.g,
+            b: self.b,
+            a: (a as u16 * self.a as u16 / 255) as u8,
+        }
+    }
 }
 
 pub struct Buffer {
@@ -106,10 +114,10 @@ impl Buffer {
             pixel_range.copy_from_slice(&[r, g, b]);
         } else {
             // Alpha blending. SRC * A / 255 + DST * (255-A) / 255 = (SRC - DST) * A / 255 + DST
-            let (r, g, b, a) = (r as i16, g as i16, b as i16, a as i16);
-            pixel_range[0] = ((r - pixel_range[0] as i16) * a / 255 + pixel_range[0] as i16) as u8;
-            pixel_range[1] = ((g - pixel_range[1] as i16) * a / 255 + pixel_range[1] as i16) as u8;
-            pixel_range[2] = ((b - pixel_range[2] as i16) * a / 255 + pixel_range[2] as i16) as u8;
+            let (r, g, b, a) = (r as i32, g as i32, b as i32, a as i32);
+            pixel_range[0] = ((r - pixel_range[0] as i32) * a / 255 + pixel_range[0] as i32) as u8;
+            pixel_range[1] = ((g - pixel_range[1] as i32) * a / 255 + pixel_range[1] as i32) as u8;
+            pixel_range[2] = ((b - pixel_range[2] as i32) * a / 255 + pixel_range[2] as i32) as u8;
         }
     }
     /// Fills a rectangle, clipped to the buffer's size
@@ -179,6 +187,77 @@ impl Buffer {
                 d += 2 * (dy - dx);
             } else {
                 d += 2 * dy;
+            }
+        }
+    }
+    pub fn line_aa(&self, mut p1: Offset, mut p2: Offset, color: Rgba) {
+        let steep = if p1.x.abs_diff(p2.x) < p1.y.abs_diff(p2.y) {
+            mem::swap(&mut p1.x, &mut p1.y);
+            mem::swap(&mut p2.x, &mut p2.y);
+            true
+        } else {
+            false
+        };
+        if p1.x > p2.x {
+            mem::swap(&mut p1, &mut p2);
+        }
+
+        let dx = p2.x - p1.x;
+        let dy = p2.y - p1.y;
+
+        let gradient = if dx == 0 { 1.0 } else { dy as f32 / dx as f32 };
+
+        // handle first endpoint
+        let xend = p1.x as f32;
+        let yend = p1.y as f32;
+        let xpxl1 = xend;
+        let ypxl1 = yend;
+        if steep {
+            self.point(ypxl1 as i32, xpxl1 as i32, color);
+        } else {
+            self.point(xpxl1 as i32, ypxl1 as i32, color);
+        }
+        let mut intery = yend + gradient;
+
+        // handle second endpoint
+        let xend = p2.x as f32;
+        let yend = p2.y as f32;
+        let xpxl2 = xend;
+        let ypxl2 = yend;
+        if steep {
+            self.point(ypxl2 as i32, xpxl2 as i32, color);
+        } else {
+            self.point(xpxl2 as i32, ypxl2 as i32, color);
+        }
+
+        // main loop
+        if steep {
+            for x in xpxl1 as i32 + 1..xpxl2 as i32 {
+                self.point(
+                    intery as i32,
+                    x,
+                    color.set_a(255 - (intery.fract() * 255.0) as u8),
+                );
+                self.point(
+                    intery as i32 + 1,
+                    x,
+                    color.set_a((intery.fract() * 255.0) as u8),
+                );
+                intery += gradient;
+            }
+        } else {
+            for x in xpxl1 as i32 + 1..xpxl2 as i32 {
+                self.point(
+                    x,
+                    intery as i32,
+                    color.set_a(255 - (intery.fract() * 255.0) as u8),
+                );
+                self.point(
+                    x,
+                    intery as i32 + 1,
+                    color.set_a((intery.fract() * 255.0) as u8),
+                );
+                intery += gradient;
             }
         }
     }

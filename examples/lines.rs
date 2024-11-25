@@ -10,7 +10,7 @@ fn main() {
         Offset { x: 200, y: 250 },
         Rgba::RED,
     );
-    buf.line(
+    buf.line_aa(
         Offset { x: 100, y: 150 },
         Offset { x: 300, y: 200 },
         Rgba::BLUE,
