@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{Offset, Rect};
 
@@ -143,6 +143,42 @@ impl Buffer {
                     pixel_range[b_i] =
                         ((b - pixel_range[b_i] as i16) * a / 255 + pixel_range[b_i] as i16) as u8;
                 }
+            }
+        }
+    }
+    pub fn line(&self, mut p1: Offset, mut p2: Offset, color: Rgba) {
+        let steep = if p1.x.abs_diff(p2.x) < p1.y.abs_diff(p2.y) {
+            mem::swap(&mut p1.x, &mut p1.y);
+            mem::swap(&mut p2.x, &mut p2.y);
+            true
+        } else {
+            false
+        };
+        if p1.x > p2.x {
+            mem::swap(&mut p1, &mut p2);
+        }
+        let dx = p2.x - p1.x;
+        let mut dy = p2.y - p1.y;
+        let mut yi = 1;
+
+        if dy < 0 {
+            yi = -1;
+            dy = -dy;
+        }
+        let mut d = (2 * dy) - dx;
+        let mut y = p1.y;
+
+        for x in p1.x..=p2.x {
+            if steep {
+                self.point(y, x, color);
+            } else {
+                self.point(x, y, color);
+            }
+            if d > 0 {
+                y += yi;
+                d += 2 * (dy - dx);
+            } else {
+                d += 2 * dy;
             }
         }
     }
