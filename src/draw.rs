@@ -310,4 +310,36 @@ impl Buffer {
             }
         }
     }
+    pub fn fill_circle(&self, center: Offset, radius: i32, color: Rgba) {
+        for y in center.y - radius..=center.y + radius {
+            let sqy = (y - center.y) * (y - center.y);
+            for x in center.x - radius..=center.x + radius {
+                let sqd = (x - center.x) * (x - center.x) + sqy;
+                if sqd <= radius * radius {
+                    self.point(x, y, color);
+                }
+            }
+        }
+    }
+    pub fn fill_circle_aa(&self, center: Offset, radius: i32, color: Rgba) {
+        let rmin = radius * (radius - 1);
+        let rmax = radius * (radius + 1);
+        for y in center.y - radius..=center.y + radius {
+            let sqy = (y - center.y) * (y - center.y);
+            for x in center.x - radius..=center.x + radius {
+                let sqd = (x - center.x) * (x - center.x) + sqy;
+                if sqd < rmin {
+                    self.point(x, y, color);
+                } else if sqd < rmax {
+                    let mut c = rmax - sqd;
+                    c *= 256;
+                    c /= 2 * radius;
+                    if c > 255 {
+                        c = 255
+                    };
+                    self.point(x, y, color.set_a(c as u8));
+                }
+            }
+        }
+    }
 }
