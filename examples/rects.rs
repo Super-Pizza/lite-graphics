@@ -23,5 +23,14 @@ fn main() {
         },
         Rgba::from([0, 0, 255, 128]),
     );
+    buf.rect(
+        Rect {
+            x: 50,
+            y: 50,
+            w: 300,
+            h: 200,
+        },
+        Rgba::GREEN,
+    );
     buf.draw();
 }

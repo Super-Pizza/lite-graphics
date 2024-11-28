@@ -342,4 +342,23 @@ impl Buffer {
             }
         }
     }
+    pub fn rect(&self, rect: Rect, color: Rgba) {
+        let p1 = Offset {
+            x: rect.x,
+            y: rect.y,
+        };
+        let p3 = Offset {
+            x: rect.w + rect.x,
+            y: rect.h + rect.y,
+        };
+
+        for x in p1.x..=p3.x {
+            self.point(x, p1.y, color);
+            self.point(x, p3.y, color);
+        }
+        for y in p1.y + 1..p3.y {
+            self.point(p1.x, y, color);
+            self.point(p3.x, y, color);
+        }
+    }
 }
