@@ -261,4 +261,53 @@ impl Buffer {
             }
         }
     }
+    /// NOTE: this isn't a perfect circle, but it's very efficient.
+    pub fn circle(&self, center: Offset, radius: i32, color: Rgba) {
+        let mut e = (1 - radius) / 2;
+        let mut x = radius;
+        let mut y = 0;
+        while x >= y {
+            self.point(center.x + x, center.y + y, color);
+            self.point(center.x + y, center.y + x, color);
+            self.point(center.x - x, center.y + y, color);
+            self.point(center.x - y, center.y + x, color);
+            self.point(center.x + x, center.y - y, color);
+            self.point(center.x + y, center.y - x, color);
+            self.point(center.x - x, center.y - y, color);
+            self.point(center.x - y, center.y - x, color);
+            y += 1;
+            if e >= 0 {
+                x -= 1;
+                e -= x;
+            }
+            e += y;
+        }
+    }
+    pub fn circle_aa(&self, center: Offset, radius: i32, color: Rgba) {
+        let rmin = radius * (radius - 2);
+        let rmax = radius * (radius + 2);
+        for y in center.y - radius..=center.y + radius {
+            let sqy = (y - center.y) * (y - center.y);
+            for x in center.x - radius..=center.x + radius {
+                let sqd = (x - center.x) * (x - center.x) + sqy;
+                if sqd < rmax && sqd >= radius * radius {
+                    let mut c = rmax - sqd;
+                    c *= 256;
+                    c /= 2 * radius;
+                    if c > 255 {
+                        c = 255
+                    };
+                    self.point(x, y, color.set_a(c as u8));
+                } else if sqd < radius * radius && sqd >= rmin {
+                    let mut c = sqd - rmin;
+                    c *= 256;
+                    c /= 2 * radius;
+                    if c > 255 {
+                        c = 255
+                    };
+                    self.point(x, y, color.set_a(c as u8));
+                }
+            }
+        }
+    }
 }
