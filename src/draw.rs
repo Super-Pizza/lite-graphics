@@ -361,4 +361,266 @@ impl Buffer {
             self.point(p3.x, y, color);
         }
     }
+    pub fn round_rect(&self, rect: Rect, radius: i32, color: Rgba) {
+        let p1 = Offset {
+            x: rect.x,
+            y: rect.y,
+        };
+        let p3 = Offset {
+            x: rect.w + rect.x,
+            y: rect.h + rect.y,
+        };
+        for x in p1.x + radius + 1..p3.x - radius {
+            self.point(x, p1.y, color);
+            self.point(x, p3.y, color);
+        }
+        for y in p1.y + radius + 1..p3.y - radius {
+            self.point(p1.x, y, color);
+            self.point(p3.x, y, color);
+        }
+        let p1_c = Offset {
+            x: p1.x + radius,
+            y: p1.y + radius,
+        };
+        let p3_c = Offset {
+            x: p3.x - radius,
+            y: p3.y - radius,
+        };
+        let mut e = (1 - radius) / 2;
+        let mut x = radius;
+        let mut y = 0;
+        while x >= y {
+            self.point(p3_c.x + x, p3_c.y + y, color);
+            self.point(p3_c.x + y, p3_c.y + x, color);
+            self.point(p1_c.x - x, p3_c.y + y, color);
+            self.point(p1_c.x - y, p3_c.y + x, color);
+            self.point(p3_c.x + x, p1_c.y - y, color);
+            self.point(p3_c.x + y, p1_c.y - x, color);
+            self.point(p1_c.x - x, p1_c.y - y, color);
+            self.point(p1_c.x - y, p1_c.y - x, color);
+            y += 1;
+            if e >= 0 {
+                x -= 1;
+                e -= x;
+            }
+            e += y;
+        }
+    }
+    pub fn round_rect_aa(&self, rect: Rect, radius: i32, color: Rgba) {
+        let rmin = radius * (radius - 2);
+        let rmax = radius * (radius + 2);
+        let plot = |x: i32, y: i32, sqd: i32| {
+            if sqd < rmax && sqd >= radius * radius {
+                let mut c = rmax - sqd;
+                c *= 256;
+                c /= 2 * radius;
+                if c > 255 {
+                    c = 255
+                };
+                self.point(x, y, color.set_a(c as u8));
+            } else if sqd < radius * radius && sqd >= rmin {
+                let mut c = sqd - rmin;
+                c *= 256;
+                c /= 2 * radius;
+                if c > 255 {
+                    c = 255
+                };
+                self.point(x, y, color.set_a(c as u8));
+            }
+        };
+        let p1 = Offset {
+            x: rect.x,
+            y: rect.y,
+        };
+        let p3 = Offset {
+            x: rect.w + rect.x,
+            y: rect.h + rect.y,
+        };
+        for x in p1.x + radius + 1..p3.x - radius {
+            self.point(x, p1.y, color);
+            self.point(x, p3.y, color);
+        }
+        for y in p1.y + radius + 1..p3.y - radius {
+            self.point(p1.x, y, color);
+            self.point(p3.x, y, color);
+        }
+        let p1_c = Offset {
+            x: p1.x + radius,
+            y: p1.y + radius,
+        };
+        let p3_c = Offset {
+            x: p3.x - radius,
+            y: p3.y - radius,
+        };
+        for y in p1_c.y - radius..=p1_c.y {
+            let sqy = (y - p1_c.y) * (y - p1_c.y);
+            for x in p1_c.x - radius..=p1_c.x {
+                let sqd = (x - p1_c.x) * (x - p1_c.x) + sqy;
+                plot(x, y, sqd)
+            }
+        }
+        for y in p3_c.y..=p3_c.y + radius {
+            let sqy = (y - p3_c.y) * (y - p3_c.y);
+            for x in p1_c.x - radius..=p1_c.x {
+                let sqd = (x - p1_c.x) * (x - p1_c.x) + sqy;
+                plot(x, y, sqd)
+            }
+        }
+        for y in p1_c.y - radius..=p1_c.y {
+            let sqy = (y - p1_c.y) * (y - p1_c.y);
+            for x in p3_c.x..=p3_c.x + radius {
+                let sqd = (x - p3_c.x) * (x - p3_c.x) + sqy;
+                plot(x, y, sqd)
+            }
+        }
+        for y in p3_c.y..=p3_c.y + radius {
+            let sqy = (y - p3_c.y) * (y - p3_c.y);
+            for x in p3_c.x..=p3_c.x + radius {
+                let sqd = (x - p3_c.x) * (x - p3_c.x) + sqy;
+                plot(x, y, sqd)
+            }
+        }
+    }
+    pub fn fill_round_rect(&self, rect: Rect, radius: i32, color: Rgba) {
+        let plot = |x: i32, y: i32, sqd: i32| {
+            if sqd <= radius * (2 + radius) {
+                self.point(x, y, color);
+            }
+        };
+        let p1 = Offset {
+            x: rect.x,
+            y: rect.y,
+        };
+        let p3 = Offset {
+            x: rect.w + rect.x,
+            y: rect.h + rect.y,
+        };
+
+        let p1_c = Offset {
+            x: p1.x + radius,
+            y: p1.y + radius,
+        };
+        let p3_c = Offset {
+            x: p3.x - radius,
+            y: p3.y - radius,
+        };
+
+        for y in p1_c.y + 1..p3_c.y {
+            for x in p1.x..=p3.x {
+                self.point(x, y, color);
+            }
+        }
+        for x in p1_c.x + 1..p3_c.x {
+            for y in p1.y..=p1_c.y {
+                self.point(x, y, color);
+            }
+            for y in p3_c.y..=p3.y {
+                self.point(x, y, color);
+            }
+        }
+        for y in p1_c.y - radius..=p1_c.y {
+            let sqy = (y - p1_c.y) * (y - p1_c.y);
+            for x in p1_c.x - radius..=p1_c.x {
+                let sqd = (x - p1_c.x) * (x - p1_c.x) + sqy;
+                plot(x, y, sqd)
+            }
+        }
+        for y in p3_c.y..=p3_c.y + radius {
+            let sqy = (y - p3_c.y) * (y - p3_c.y);
+            for x in p1_c.x - radius..=p1_c.x {
+                let sqd = (x - p1_c.x) * (x - p1_c.x) + sqy;
+                plot(x, y, sqd)
+            }
+        }
+        for y in p1_c.y - radius..=p1_c.y {
+            let sqy = (y - p1_c.y) * (y - p1_c.y);
+            for x in p3_c.x..=p3_c.x + radius {
+                let sqd = (x - p3_c.x) * (x - p3_c.x) + sqy;
+                plot(x, y, sqd)
+            }
+        }
+        for y in p3_c.y..=p3_c.y + radius {
+            let sqy = (y - p3_c.y) * (y - p3_c.y);
+            for x in p3_c.x..=p3_c.x + radius {
+                let sqd = (x - p3_c.x) * (x - p3_c.x) + sqy;
+                plot(x, y, sqd)
+            }
+        }
+    }
+    pub fn fill_round_rect_aa(&self, rect: Rect, radius: i32, color: Rgba) {
+        let rmin = radius * (radius);
+        let rmax = radius * (radius + 2);
+        let plot = |x: i32, y: i32, sqd: i32| {
+            if sqd < rmin {
+                self.point(x, y, color);
+            } else if sqd < rmax {
+                let mut c = rmax - sqd;
+                c *= 256;
+                c /= 2 * radius;
+                if c > 255 {
+                    c = 255
+                };
+                self.point(x, y, color.set_a(c as u8));
+            }
+        };
+        let p1 = Offset {
+            x: rect.x,
+            y: rect.y,
+        };
+        let p3 = Offset {
+            x: rect.w + rect.x,
+            y: rect.h + rect.y,
+        };
+
+        let p1_c = Offset {
+            x: p1.x + radius,
+            y: p1.y + radius,
+        };
+        let p3_c = Offset {
+            x: p3.x - radius,
+            y: p3.y - radius,
+        };
+
+        for y in p1_c.y + 1..p3_c.y {
+            for x in p1.x..=p3.x {
+                self.point(x, y, color);
+            }
+        }
+        for x in p1_c.x + 1..p3_c.x {
+            for y in p1.y..=p1_c.y {
+                self.point(x, y, color);
+            }
+            for y in p3_c.y..=p3.y {
+                self.point(x, y, color);
+            }
+        }
+        for y in p1_c.y - radius..=p1_c.y {
+            let sqy = (y - p1_c.y) * (y - p1_c.y);
+            for x in p1_c.x - radius..=p1_c.x {
+                let sqd = (x - p1_c.x) * (x - p1_c.x) + sqy;
+                plot(x, y, sqd)
+            }
+        }
+        for y in p3_c.y..=p3_c.y + radius {
+            let sqy = (y - p3_c.y) * (y - p3_c.y);
+            for x in p1_c.x - radius..=p1_c.x {
+                let sqd = (x - p1_c.x) * (x - p1_c.x) + sqy;
+                plot(x, y, sqd)
+            }
+        }
+        for y in p1_c.y - radius..=p1_c.y {
+            let sqy = (y - p1_c.y) * (y - p1_c.y);
+            for x in p3_c.x..=p3_c.x + radius {
+                let sqd = (x - p3_c.x) * (x - p3_c.x) + sqy;
+                plot(x, y, sqd)
+            }
+        }
+        for y in p3_c.y..=p3_c.y + radius {
+            let sqy = (y - p3_c.y) * (y - p3_c.y);
+            for x in p3_c.x..=p3_c.x + radius {
+                let sqd = (x - p3_c.x) * (x - p3_c.x) + sqy;
+                plot(x, y, sqd)
+            }
+        }
+    }
 }
