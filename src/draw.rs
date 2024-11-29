@@ -322,8 +322,8 @@ impl Buffer {
         }
     }
     pub fn fill_circle_aa(&self, center: Offset, radius: i32, color: Rgba) {
-        let rmin = radius * (radius - 1);
-        let rmax = radius * (radius + 1);
+        let rmin = radius * (radius);
+        let rmax = radius * (radius + 2);
         for y in center.y - radius..=center.y + radius {
             let sqy = (y - center.y) * (y - center.y);
             for x in center.x - radius..=center.x + radius {
