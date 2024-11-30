@@ -1,6 +1,6 @@
 use std::{cell::RefCell, mem, rc::Rc};
 
-use crate::{Offset, Rect};
+use crate::{Offset, Rect, Size};
 
 #[derive(Clone, Copy)]
 pub struct Rgba {
@@ -122,14 +122,9 @@ impl Buffer {
     }
     /// Fills a rectangle, clipped to the buffer's size
     pub fn fill_rect(&self, rect: Rect, color: Rgba) {
-        let p1 = Offset {
-            x: rect.x.max(0),
-            y: rect.y.max(0),
-        };
-        let p2 = Offset {
-            x: (self.width as i32).min(rect.w + rect.x),
-            y: (self.height as i32).min(rect.h + rect.y),
-        };
+        let rect = rect.clamp(Size::from((self.width as u32, self.height as u32)).into());
+        let p1 = rect.offset();
+        let p2 = rect.offset_2();
         let [r, g, b, a] = color.into();
 
         let (x1, y1, x2, y2) = (p1.x as usize, p1.y as usize, p2.x as usize, p2.y as usize);
@@ -262,14 +257,16 @@ impl Buffer {
         }
     }
     pub fn line_h(&self, p1: Offset, length: i32, color: Rgba) {
-        let p1 = Offset {
-            x: p1.x.max(0),
-            y: p1.y.max(0),
+        let size = Size {
+            w: length as _,
+            h: 1,
         };
-        let x2 = (self.width as i32).min(length + p1.x) as usize;
+        let rect = Rect::from((p1, size))
+            .clamp(Size::from((self.width as u32, self.height as u32)).into());
         let [r, g, b, a] = color.into();
 
-        let (x1, y1) = (p1.x as usize, p1.y as usize);
+        let (x1, y1) = (rect.x as usize, rect.y as usize);
+        let x2 = rect.offset_2().y as usize;
         let pixel_range =
             &mut self.data.borrow_mut()[(x1 + y1 * self.width) * 3..(x2 + y1 * self.width) * 3];
         if a == 255 {
@@ -290,14 +287,16 @@ impl Buffer {
         }
     }
     pub fn line_v(&self, p1: Offset, length: i32, color: Rgba) {
-        let p1 = Offset {
-            x: p1.x.max(0),
-            y: p1.y.max(0),
+        let size = Size {
+            w: 1,
+            h: length as _,
         };
-        let y2 = (self.height as i32).min(length + p1.y) as usize;
+        let rect = Rect::from((p1, size))
+            .clamp(Size::from((self.width as u32, self.height as u32)).into());
         let [r, g, b, a] = color.into();
 
-        let (x1, y1) = (p1.x as usize, p1.y as usize);
+        let (x1, y1) = (rect.x as usize, rect.y as usize);
+        let y2 = rect.offset_2().y as usize;
         for row in y1..y2 {
             let pixel_range = &mut self.data.borrow_mut()
                 [(x1 + row * self.width) * 3..(x1 + 1 + row * self.width) * 3];
@@ -396,14 +395,8 @@ impl Buffer {
         }
     }
     pub fn rect(&self, rect: Rect, color: Rgba) {
-        let p1 = Offset {
-            x: rect.x,
-            y: rect.y,
-        };
-        let p3 = Offset {
-            x: rect.w + rect.x,
-            y: rect.h + rect.y,
-        };
+        let p1 = rect.offset();
+        let p3 = rect.offset_2();
 
         for x in p1.x..=p3.x {
             self.point(x, p1.y, color);
@@ -415,14 +408,9 @@ impl Buffer {
         }
     }
     pub fn round_rect(&self, rect: Rect, radius: i32, color: Rgba) {
-        let p1 = Offset {
-            x: rect.x,
-            y: rect.y,
-        };
-        let p3 = Offset {
-            x: rect.w + rect.x,
-            y: rect.h + rect.y,
-        };
+        let p1 = rect.offset();
+        let p3 = rect.offset_2();
+
         for x in p1.x + radius + 1..p3.x - radius {
             self.point(x, p1.y, color);
             self.point(x, p3.y, color);
@@ -431,6 +419,7 @@ impl Buffer {
             self.point(p1.x, y, color);
             self.point(p3.x, y, color);
         }
+
         let p1_c = Offset {
             x: p1.x + radius,
             y: p1.y + radius,
@@ -439,6 +428,7 @@ impl Buffer {
             x: p3.x - radius,
             y: p3.y - radius,
         };
+        
         let mut e = (1 - radius) / 2;
         let mut x = radius;
         let mut y = 0;
@@ -481,14 +471,10 @@ impl Buffer {
                 self.point(x, y, color.set_a(c as u8));
             }
         };
-        let p1 = Offset {
-            x: rect.x,
-            y: rect.y,
-        };
-        let p3 = Offset {
-            x: rect.w + rect.x,
-            y: rect.h + rect.y,
-        };
+
+        let p1 = rect.offset();
+        let p3 = rect.offset_2();
+
         for x in p1.x + radius + 1..p3.x - radius {
             self.point(x, p1.y, color);
             self.point(x, p3.y, color);
@@ -497,6 +483,7 @@ impl Buffer {
             self.point(p1.x, y, color);
             self.point(p3.x, y, color);
         }
+
         let p1_c = Offset {
             x: p1.x + radius,
             y: p1.y + radius,
@@ -505,6 +492,7 @@ impl Buffer {
             x: p3.x - radius,
             y: p3.y - radius,
         };
+
         for y in p1_c.y - radius..=p1_c.y {
             let sqy = (y - p1_c.y) * (y - p1_c.y);
             for x in p1_c.x - radius..=p1_c.x {
@@ -540,14 +528,9 @@ impl Buffer {
                 self.point(x, y, color);
             }
         };
-        let p1 = Offset {
-            x: rect.x,
-            y: rect.y,
-        };
-        let p3 = Offset {
-            x: rect.w + rect.x,
-            y: rect.h + rect.y,
-        };
+
+        let p1 = rect.offset();
+        let p3 = rect.offset_2();
 
         let p1_c = Offset {
             x: p1.x + radius,
@@ -571,6 +554,7 @@ impl Buffer {
                 self.point(x, y, color);
             }
         }
+
         for y in p1_c.y - radius..=p1_c.y {
             let sqy = (y - p1_c.y) * (y - p1_c.y);
             for x in p1_c.x - radius..=p1_c.x {
@@ -616,14 +600,9 @@ impl Buffer {
                 self.point(x, y, color.set_a(c as u8));
             }
         };
-        let p1 = Offset {
-            x: rect.x,
-            y: rect.y,
-        };
-        let p3 = Offset {
-            x: rect.w + rect.x,
-            y: rect.h + rect.y,
-        };
+
+        let p1 = rect.offset();
+        let p3 = rect.offset_2();
 
         let p1_c = Offset {
             x: p1.x + radius,
@@ -647,6 +626,7 @@ impl Buffer {
                 self.point(x, y, color);
             }
         }
+
         for y in p1_c.y - radius..=p1_c.y {
             let sqy = (y - p1_c.y) * (y - p1_c.y);
             for x in p1_c.x - radius..=p1_c.x {
