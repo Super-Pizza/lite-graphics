@@ -103,6 +103,20 @@ impl Rgba {
     }
 }
 
+macro_rules! quadrant {
+    ($($fn:ident).+($cx:expr,$cy:expr,$x:expr,$y:expr,$color:expr)) => {
+        if $x != 0 {
+            if $y != 0 {
+                $($fn).+($cx - $x, $cy - $y, $color);
+            }
+            $($fn).+($cx - $x, $cy + $y, $color);
+        }
+        if $y != 0 {
+            $($fn).+($cx + $x, $cy - $y, $color);
+        }
+        $($fn).+($cx + $x, $cy + $y, $color);
+    };
+}
 pub struct Buffer {
     pub(crate) data: RefCell<Vec<u8>>,
     pub(crate) width: usize,
@@ -373,16 +387,7 @@ impl Buffer {
                     if c > 255 {
                         c = 255
                     };
-                    if x != 0 {
-                        if y != 0 {
-                            self.point(center.x - x, center.y - y, color.set_a(c as u8));
-                        }
-                        self.point(center.x - x, center.y + y, color.set_a(c as u8));
-                    }
-                    if y != 0 {
-                        self.point(center.x + x, center.y - y, color.set_a(c as u8));
-                    }
-                    self.point(center.x + x, center.y + y, color.set_a(c as u8));
+                    quadrant!(self.point(center.x, center.y, x, y, color.set_a(c as u8)));
                 } else if sqd < radius * radius && sqd >= rmin {
                     let mut c = sqd - rmin;
                     c *= 256;
@@ -390,16 +395,7 @@ impl Buffer {
                     if c > 255 {
                         c = 255
                     };
-                    if x != 0 {
-                        if y != 0 {
-                            self.point(center.x - x, center.y - y, color.set_a(c as u8));
-                        }
-                        self.point(center.x - x, center.y + y, color.set_a(c as u8));
-                    }
-                    if y != 0 {
-                        self.point(center.x + x, center.y - y, color.set_a(c as u8));
-                    }
-                    self.point(center.x + x, center.y + y, color.set_a(c as u8));
+                    quadrant!(self.point(center.x, center.y, x, y, color.set_a(c as u8)));
                 }
             }
         }
@@ -410,16 +406,7 @@ impl Buffer {
             for x in 0..=radius {
                 let sqd = x * x + sqy;
                 if sqd <= radius * (1 + radius) {
-                    if x != 0 {
-                        if y != 0 {
-                            self.point(center.x - x, center.y - y, color);
-                        }
-                        self.point(center.x - x, center.y + y, color);
-                    }
-                    if y != 0 {
-                        self.point(center.x + x, center.y - y, color);
-                    }
-                    self.point(center.x + x, center.y + y, color);
+                    quadrant!(self.point(center.x, center.y, x, y, color));
                 }
             }
         }
@@ -432,16 +419,7 @@ impl Buffer {
             for x in 0..=radius {
                 let sqd = x * x + sqy;
                 if sqd < rmin {
-                    if x != 0 {
-                        if y != 0 {
-                            self.point(center.x - x, center.y - y, color);
-                        }
-                        self.point(center.x - x, center.y + y, color);
-                    }
-                    if y != 0 {
-                        self.point(center.x + x, center.y - y, color);
-                    }
-                    self.point(center.x + x, center.y + y, color);
+                    quadrant!(self.point(center.x, center.y, x, y, color));
                 } else if sqd < rmax {
                     let mut c = rmax - sqd;
                     c *= 256;
@@ -449,16 +427,7 @@ impl Buffer {
                     if c > 255 {
                         c = 255
                     };
-                    if x != 0 {
-                        if y != 0 {
-                            self.point(center.x - x, center.y - y, color.set_a(c as u8));
-                        }
-                        self.point(center.x - x, center.y + y, color.set_a(c as u8));
-                    }
-                    if y != 0 {
-                        self.point(center.x + x, center.y - y, color.set_a(c as u8));
-                    }
-                    self.point(center.x + x, center.y + y, color.set_a(c as u8));
+                    quadrant!(self.point(center.x, center.y, x, y, color.set_a(c as u8)));
                 }
             }
         }
