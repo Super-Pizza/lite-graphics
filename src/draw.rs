@@ -63,6 +63,24 @@ impl Rgba {
         b: 255,
         a: 255,
     };
+    pub const YELLOW: Self = Self {
+        r: 255,
+        g: 255,
+        b: 0,
+        a: 255,
+    };
+    pub const CYAN: Self = Self {
+        r: 0,
+        g: 255,
+        b: 255,
+        a: 255,
+    };
+    pub const MAGENTA: Self = Self {
+        r: 255,
+        g: 0,
+        b: 255,
+        a: 255,
+    };
     pub const BLACK: Self = Self {
         r: 0,
         g: 0,
@@ -428,7 +446,7 @@ impl Buffer {
             x: p3.x - radius,
             y: p3.y - radius,
         };
-        
+
         let mut e = (1 - radius) / 2;
         let mut x = radius;
         let mut y = 0;
