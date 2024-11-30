@@ -337,14 +337,20 @@ impl Buffer {
         let mut x = radius;
         let mut y = 0;
         while x >= y {
+            if y != 0 {
+                if x != y {
+                    self.point(center.x - y, center.y + x, color);
+                    self.point(center.x + y, center.y - x, color);
+                }
+                self.point(center.x - x, center.y + y, color);
+                self.point(center.x + x, center.y - y, color);
+            }
+            if x != y {
+                self.point(center.x + y, center.y + x, color);
+                self.point(center.x - y, center.y - x, color);
+            }
             self.point(center.x + x, center.y + y, color);
-            self.point(center.x + y, center.y + x, color);
-            self.point(center.x - x, center.y + y, color);
-            self.point(center.x - y, center.y + x, color);
-            self.point(center.x + x, center.y - y, color);
-            self.point(center.x + y, center.y - x, color);
             self.point(center.x - x, center.y - y, color);
-            self.point(center.x - y, center.y - x, color);
             y += 1;
             if e >= 0 {
                 x -= 1;
@@ -451,14 +457,16 @@ impl Buffer {
         let mut x = radius;
         let mut y = 0;
         while x >= y {
+            if x != y {
+                self.point(p3_c.x + y, p3_c.y + x, color);
+                self.point(p1_c.x - y, p3_c.y + x, color);
+                self.point(p3_c.x + y, p1_c.y - x, color);
+                self.point(p1_c.x - y, p1_c.y - x, color);
+            }
             self.point(p3_c.x + x, p3_c.y + y, color);
-            self.point(p3_c.x + y, p3_c.y + x, color);
             self.point(p1_c.x - x, p3_c.y + y, color);
-            self.point(p1_c.x - y, p3_c.y + x, color);
             self.point(p3_c.x + x, p1_c.y - y, color);
-            self.point(p3_c.x + y, p1_c.y - x, color);
             self.point(p1_c.x - x, p1_c.y - y, color);
-            self.point(p1_c.x - y, p1_c.y - x, color);
             y += 1;
             if e >= 0 {
                 x -= 1;
