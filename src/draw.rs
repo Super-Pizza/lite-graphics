@@ -261,6 +261,59 @@ impl Buffer {
             }
         }
     }
+    pub fn line_h(&self, p1: Offset, length: i32, color: Rgba) {
+        let p1 = Offset {
+            x: p1.x.max(0),
+            y: p1.y.max(0),
+        };
+        let x2 = (self.width as i32).min(length + p1.x) as usize;
+        let [r, g, b, a] = color.into();
+
+        let (x1, y1) = (p1.x as usize, p1.y as usize);
+        let pixel_range =
+            &mut self.data.borrow_mut()[(x1 + y1 * self.width) * 3..(x2 + y1 * self.width) * 3];
+        if a == 255 {
+            pixel_range.copy_from_slice(&[r, g, b].repeat(x2 - x1));
+        } else {
+            for i in x1..x2 {
+                let (r, g, b, a) = (r as i16, g as i16, b as i16, a as i16);
+                let r_i = (i - x1) * 3;
+                let g_i = r_i + 1;
+                let b_i = r_i + 2;
+                pixel_range[r_i] =
+                    ((r - pixel_range[r_i] as i16) * a / 255 + pixel_range[r_i] as i16) as u8;
+                pixel_range[g_i] =
+                    ((g - pixel_range[g_i] as i16) * a / 255 + pixel_range[g_i] as i16) as u8;
+                pixel_range[b_i] =
+                    ((b - pixel_range[b_i] as i16) * a / 255 + pixel_range[b_i] as i16) as u8;
+            }
+        }
+    }
+    pub fn line_v(&self, p1: Offset, length: i32, color: Rgba) {
+        let p1 = Offset {
+            x: p1.x.max(0),
+            y: p1.y.max(0),
+        };
+        let y2 = (self.height as i32).min(length + p1.y) as usize;
+        let [r, g, b, a] = color.into();
+
+        let (x1, y1) = (p1.x as usize, p1.y as usize);
+        for row in y1..y2 {
+            let pixel_range = &mut self.data.borrow_mut()
+                [(x1 + row * self.width) * 3..(x1 + 1 + row * self.width) * 3];
+            if a == 255 {
+                pixel_range.copy_from_slice(&[r, g, b]);
+            } else {
+                let (r, g, b, a) = (r as i16, g as i16, b as i16, a as i16);
+                pixel_range[0] =
+                    ((r - pixel_range[0] as i16) * a / 255 + pixel_range[0] as i16) as u8;
+                pixel_range[1] =
+                    ((g - pixel_range[1] as i16) * a / 255 + pixel_range[1] as i16) as u8;
+                pixel_range[2] =
+                    ((b - pixel_range[2] as i16) * a / 255 + pixel_range[2] as i16) as u8;
+            }
+        }
+    }
     /// NOTE: this isn't a perfect circle, but it's very efficient.
     pub fn circle(&self, center: Offset, radius: i32, color: Rgba) {
         let mut e = (1 - radius) / 2;
