@@ -140,16 +140,16 @@ impl Buffer {
                 pixel_range.copy_from_slice(&[r, g, b].repeat(x2 - x1));
             } else {
                 for i in x1..x2 {
-                    let (r, g, b, a) = (r as i16, g as i16, b as i16, a as i16);
+                    let (r, g, b, a) = (r as i32, g as i32, b as i32, a as i32);
                     let r_i = (i - x1) * 3;
                     let g_i = r_i + 1;
                     let b_i = r_i + 2;
                     pixel_range[r_i] =
-                        ((r - pixel_range[r_i] as i16) * a / 255 + pixel_range[r_i] as i16) as u8;
+                        ((r - pixel_range[r_i] as i32) * a / 255 + pixel_range[r_i] as i32) as u8;
                     pixel_range[g_i] =
-                        ((g - pixel_range[g_i] as i16) * a / 255 + pixel_range[g_i] as i16) as u8;
+                        ((g - pixel_range[g_i] as i32) * a / 255 + pixel_range[g_i] as i32) as u8;
                     pixel_range[b_i] =
-                        ((b - pixel_range[b_i] as i16) * a / 255 + pixel_range[b_i] as i16) as u8;
+                        ((b - pixel_range[b_i] as i32) * a / 255 + pixel_range[b_i] as i32) as u8;
                 }
             }
         }
@@ -276,16 +276,16 @@ impl Buffer {
             pixel_range.copy_from_slice(&[r, g, b].repeat(x2 - x1));
         } else {
             for i in x1..x2 {
-                let (r, g, b, a) = (r as i16, g as i16, b as i16, a as i16);
+                let (r, g, b, a) = (r as i32, g as i32, b as i32, a as i32);
                 let r_i = (i - x1) * 3;
                 let g_i = r_i + 1;
                 let b_i = r_i + 2;
                 pixel_range[r_i] =
-                    ((r - pixel_range[r_i] as i16) * a / 255 + pixel_range[r_i] as i16) as u8;
+                    ((r - pixel_range[r_i] as i32) * a / 255 + pixel_range[r_i] as i32) as u8;
                 pixel_range[g_i] =
-                    ((g - pixel_range[g_i] as i16) * a / 255 + pixel_range[g_i] as i16) as u8;
+                    ((g - pixel_range[g_i] as i32) * a / 255 + pixel_range[g_i] as i32) as u8;
                 pixel_range[b_i] =
-                    ((b - pixel_range[b_i] as i16) * a / 255 + pixel_range[b_i] as i16) as u8;
+                    ((b - pixel_range[b_i] as i32) * a / 255 + pixel_range[b_i] as i32) as u8;
             }
         }
     }
@@ -304,13 +304,13 @@ impl Buffer {
             if a == 255 {
                 pixel_range.copy_from_slice(&[r, g, b]);
             } else {
-                let (r, g, b, a) = (r as i16, g as i16, b as i16, a as i16);
+                let (r, g, b, a) = (r as i32, g as i32, b as i32, a as i32);
                 pixel_range[0] =
-                    ((r - pixel_range[0] as i16) * a / 255 + pixel_range[0] as i16) as u8;
+                    ((r - pixel_range[0] as i32) * a / 255 + pixel_range[0] as i32) as u8;
                 pixel_range[1] =
-                    ((g - pixel_range[1] as i16) * a / 255 + pixel_range[1] as i16) as u8;
+                    ((g - pixel_range[1] as i32) * a / 255 + pixel_range[1] as i32) as u8;
                 pixel_range[2] =
-                    ((b - pixel_range[2] as i16) * a / 255 + pixel_range[2] as i16) as u8;
+                    ((b - pixel_range[2] as i32) * a / 255 + pixel_range[2] as i32) as u8;
             }
         }
     }
