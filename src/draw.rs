@@ -315,7 +315,7 @@ impl Buffer {
             let sqy = (y - center.y) * (y - center.y);
             for x in center.x - radius..=center.x + radius {
                 let sqd = (x - center.x) * (x - center.x) + sqy;
-                if sqd <= radius * radius {
+                if sqd <= radius * (1 + radius) {
                     self.point(x, y, color);
                 }
             }
