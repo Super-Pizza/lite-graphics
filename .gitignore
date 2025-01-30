@@ -1,8 +1,11 @@
-target/
-Cargo.lock
+# Rust
+/target
+/Cargo.lock
 
-.idea/
-.vscode/
+# IDEs
+/.vscode
+/.idea
 
+# OS
 .DS_Store
 desktop.ini
