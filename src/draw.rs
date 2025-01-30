@@ -118,19 +118,28 @@ macro_rules! quadrant {
     };
 }
 pub struct Buffer {
-    pub(crate) data: RefCell<Vec<u8>>,
+    pub(crate) data: Rc<RefCell<Vec<u8>>>,
     pub(crate) width: usize,
     pub(crate) height: usize,
 }
 
 impl Buffer {
     /// Creates a buffer, filled with black
-    pub fn new(width: usize, height: usize) -> Rc<Self> {
-        Rc::new(Self {
-            data: RefCell::new(vec![255; width * height * 3]),
+    pub fn new(width: usize, height: usize) -> Self {
+        Self {
+            data: Rc::new(RefCell::new(vec![255; width * height * 3])),
             width,
             height,
-        })
+        }
+    }
+    pub fn data(&self) -> std::cell::Ref<'_, Vec<u8>> {
+        self.data.borrow()
+    }
+    pub fn size(&self) -> Size {
+        Size {
+            w: self.width as u32,
+            h: self.height as u32,
+        }
     }
     /// Draws a point of the specified color
     pub fn point(&self, x: i32, y: i32, color: Rgba) {

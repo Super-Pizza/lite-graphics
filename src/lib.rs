@@ -1,6 +1,7 @@
 use std::ops::{Add, Sub};
 
 pub mod draw;
+#[cfg(feature = "window")]
 pub mod window;
 
 #[derive(Clone, Copy, Default)]
