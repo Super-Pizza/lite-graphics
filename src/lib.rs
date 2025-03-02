@@ -171,3 +171,21 @@ impl Add<Size> for Offset {
         }
     }
 }
+
+impl Add<Self> for Offset {
+    type Output = Offset;
+    #[inline]
+    fn add(self, rhs: Self) -> Self::Output {
+        Offset {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+
+impl Add<Offset> for Rect {
+    type Output = Rect;
+    fn add(self, rhs: Offset) -> Self::Output {
+        Rect::from((self.offset() + rhs, self.size()))
+    }
+}
