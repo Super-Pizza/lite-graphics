@@ -121,6 +121,7 @@ pub struct Buffer {
     pub(crate) data: Rc<RefCell<Vec<u8>>>,
     pub(crate) width: usize,
     pub(crate) height: usize,
+    pub(crate) offs: Offset,
 }
 
 impl Buffer {
@@ -130,6 +131,15 @@ impl Buffer {
             data: Rc::new(RefCell::new(vec![255; width * height * 3])),
             width,
             height,
+            offs: Default::default(),
+        }
+    }
+    pub fn with_offset(&self, offset: Offset) -> Self {
+        Self {
+            data: self.data.clone(),
+            width: self.width,
+            height: self.height,
+            offs: offset,
         }
     }
     pub fn data(&self) -> std::cell::Ref<'_, Vec<u8>> {
@@ -143,6 +153,8 @@ impl Buffer {
     }
     /// Draws a point of the specified color
     pub fn point(&self, x: i32, y: i32, color: Rgba) {
+        let x = x + self.offs.x;
+        let y = y + self.offs.y;
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
             return;
         }
@@ -163,6 +175,7 @@ impl Buffer {
     }
     /// Fills a rectangle, clipped to the buffer's size
     pub fn fill_rect(&self, rect: Rect, color: Rgba) {
+        let rect = rect + self.offs;
         let rect = rect.clamp(Size::from((self.width as u32, self.height as u32)).into());
         let p1 = rect.offset();
         let p2 = rect.offset_2();
@@ -302,7 +315,7 @@ impl Buffer {
             w: length as _,
             h: 1,
         };
-        let rect = Rect::from((p1, size))
+        let rect = Rect::from((p1 + self.offs, size))
             .clamp(Size::from((self.width as u32, self.height as u32)).into());
         let [r, g, b, a] = color.into();
 
@@ -332,7 +345,7 @@ impl Buffer {
             w: 1,
             h: length as _,
         };
-        let rect = Rect::from((p1, size))
+        let rect = Rect::from((p1 + self.offs, size))
             .clamp(Size::from((self.width as u32, self.height as u32)).into());
         let [r, g, b, a] = color.into();
 
