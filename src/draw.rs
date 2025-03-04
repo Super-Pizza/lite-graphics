@@ -139,7 +139,7 @@ impl Buffer {
             data: self.data.clone(),
             width: self.width,
             height: self.height,
-            offs: offset,
+            offs: offset + self.offs,
         }
     }
     pub fn data(&self) -> std::cell::Ref<'_, Vec<u8>> {
