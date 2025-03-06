@@ -163,7 +163,7 @@ fn draw(tmp: &mut [u8], buf: &crate::draw::Buffer) {
 }
 
 struct Shm<'a>(&'a str);
-impl<'a> Drop for Shm<'a> {
+impl Drop for Shm<'_> {
     fn drop(&mut self) {
         nix::sys::mman::shm_unlink(self.0).unwrap();
     }
