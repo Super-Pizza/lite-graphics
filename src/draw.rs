@@ -101,6 +101,14 @@ impl Rgba {
             a: (a as u16 * self.a as u16 / 255) as u8,
         }
     }
+    pub fn lerp(self, other: Self, t: u8) -> Self {
+        Self {
+            r: ((other.r as i32 - self.r as i32) * t as i32 / 255 + self.r as i32) as u8,
+            g: ((other.g as i32 - self.g as i32) * t as i32 / 255 + self.g as i32) as u8,
+            b: ((other.b as i32 - self.b as i32) * t as i32 / 255 + self.b as i32) as u8,
+            a: ((other.a as i32 - self.a as i32) * t as i32 / 255 + self.a as i32) as u8,
+        }
+    }
 }
 
 macro_rules! quadrant {
