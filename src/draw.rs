@@ -521,7 +521,11 @@ impl Buffer {
     }
     pub fn round_rect_aa(&self, rect: Rect, radius: i32, color: Rgba) {
         let rmin = radius * (radius - 2);
-        let rmax = radius * (radius + 2);
+        let rmax = if radius == 0 {
+            1
+        } else {
+            radius * (radius + 2)
+        };
 
         let p1 = rect.offset();
         let p3 = rect.offset_2();
@@ -615,7 +619,7 @@ impl Buffer {
         }
     }
     pub fn fill_round_rect_aa(&self, rect: Rect, radius: i32, color: Rgba) {
-        let rmin = radius * (radius);
+        let rmin = if radius == 0 { 1 } else { radius * (radius) };
         let rmax = radius * (radius + 2);
 
         let p1 = rect.offset();
