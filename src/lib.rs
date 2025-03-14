@@ -62,10 +62,22 @@ pub struct Offset {
     pub y: i32,
 }
 
+impl Offset {
+    pub fn new(x: i32, y: i32) -> Self {
+        Self { x, y }
+    }
+}
+
 #[derive(Clone, Copy, Default)]
 pub struct Size {
     pub w: u32,
     pub h: u32,
+}
+
+impl Size {
+    pub fn new(w: u32, h: u32) -> Self {
+        Self { w, h }
+    }
 }
 
 impl From<Size> for Rect {
@@ -172,6 +184,17 @@ impl Add<Size> for Offset {
     }
 }
 
+impl Add<Offset> for Size {
+    type Output = Offset;
+    #[inline]
+    fn add(self, rhs: Offset) -> Self::Output {
+        Offset {
+            x: self.w as i32 + rhs.x,
+            y: self.h as i32 + rhs.y,
+        }
+    }
+}
+
 impl Add<Self> for Offset {
     type Output = Offset;
     #[inline]
@@ -179,6 +202,17 @@ impl Add<Self> for Offset {
         Offset {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
+        }
+    }
+}
+
+impl Add<Self> for Size {
+    type Output = Size;
+    #[inline]
+    fn add(self, rhs: Self) -> Self::Output {
+        Size {
+            w: self.w + rhs.w,
+            h: self.h + rhs.h,
         }
     }
 }
