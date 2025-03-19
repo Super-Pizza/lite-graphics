@@ -45,54 +45,84 @@ impl From<Rgba> for [u8; 3] {
 }
 
 impl Rgba {
-    pub const RED: Self = Self {
-        r: 255,
-        g: 0,
-        b: 0,
-        a: 255,
-    };
-    pub const GREEN: Self = Self {
-        r: 0,
-        g: 255,
-        b: 0,
-        a: 255,
-    };
-    pub const BLUE: Self = Self {
-        r: 0,
-        g: 0,
-        b: 255,
-        a: 255,
-    };
-    pub const YELLOW: Self = Self {
-        r: 255,
-        g: 255,
-        b: 0,
-        a: 255,
-    };
-    pub const CYAN: Self = Self {
-        r: 0,
-        g: 255,
-        b: 255,
-        a: 255,
-    };
-    pub const MAGENTA: Self = Self {
-        r: 255,
-        g: 0,
-        b: 255,
-        a: 255,
-    };
-    pub const BLACK: Self = Self {
-        r: 0,
-        g: 0,
-        b: 0,
-        a: 255,
-    };
-    pub const WHITE: Self = Self {
-        r: 255,
-        g: 255,
-        b: 255,
-        a: 255,
-    };
+    pub const RED: Self = Self::hex("#f00").unwrap();
+    pub const GREEN: Self = Self::hex("#0f0").unwrap();
+    pub const BLUE: Self = Self::hex("#00f").unwrap();
+    pub const YELLOW: Self = Self::hex("#ff0").unwrap();
+    pub const CYAN: Self = Self::hex("#0ff").unwrap();
+    pub const MAGENTA: Self = Self::hex("#f0f").unwrap();
+    pub const BLACK: Self = Self::hex("#000").unwrap();
+    pub const WHITE: Self = Self::hex("#fff").unwrap();
+
+    // Parse hex string (const fn).
+    pub const fn hex(val: &'static str) -> Option<Self> {
+        const fn u8_from_nibs(n1: &u8, n2: &u8) -> u8 {
+            const TABLE: [u8; 128] = [
+                0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+                0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+                0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+                0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+                0x0, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+                0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+                0x0, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+                0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+            ];
+            TABLE[*n1 as usize] * 16 + TABLE[*n2 as usize]
+        }
+        const fn get<T>(s: &[T], n: usize) -> Option<&T> {
+            if s.len() > n {
+                Some(&s[n])
+            } else {
+                None
+            }
+        }
+        let iter = val.as_bytes();
+        if iter[0] != 35 {
+            return None;
+        }
+        let r1 = get(iter, 1);
+        let r2 = get(iter, 2);
+        let g1 = get(iter, 3);
+        let g2 = get(iter, 4);
+        let b1 = get(iter, 5);
+        let b2 = get(iter, 6);
+        let a1 = get(iter, 7);
+        let a2 = get(iter, 8);
+        if g1.is_none() {
+            return None;
+        }
+        #[allow(clippy::unnecessary_unwrap)]
+        let (r, g, b, a) = if b1.is_none() {
+            let a = if let Some(a) = g2 {
+                u8_from_nibs(a, a)
+            } else {
+                255
+            };
+            // 12/16 bits
+            (
+                u8_from_nibs(r1.unwrap(), r1.unwrap()),
+                u8_from_nibs(r2.unwrap(), r2.unwrap()),
+                u8_from_nibs(g1.unwrap(), g1.unwrap()),
+                a,
+            )
+        } else if b2.is_none() || a1.is_some() && a2.is_none() {
+            return None;
+        } else {
+            let a = if let (Some(a1), Some(a2)) = (a1, a2) {
+                u8_from_nibs(a1, a2)
+            } else {
+                255
+            };
+            // 24/32 bits
+            (
+                u8_from_nibs(r1.unwrap(), r2.unwrap()),
+                u8_from_nibs(g1.unwrap(), g2.unwrap()),
+                u8_from_nibs(b1.unwrap(), b2.unwrap()),
+                a,
+            )
+        };
+        Some(Self { r, g, b, a })
+    }
     pub fn set_a(self, a: u8) -> Self {
         Self {
             r: self.r,
