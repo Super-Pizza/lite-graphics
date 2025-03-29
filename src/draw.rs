@@ -123,7 +123,7 @@ impl Rgba {
         };
         Some(Self { r, g, b, a })
     }
-    pub fn set_a(self, a: u8) -> Self {
+    pub const fn set_a(self, a: u8) -> Self {
         Self {
             r: self.r,
             g: self.g,
@@ -131,7 +131,7 @@ impl Rgba {
             a: (a as u16 * self.a as u16 / 255) as u8,
         }
     }
-    pub fn lerp(self, other: Self, t: u8) -> Self {
+    pub const fn lerp(self, other: Self, t: u8) -> Self {
         Self {
             r: ((other.r as i32 - self.r as i32) * t as i32 / 255 + self.r as i32) as u8,
             g: ((other.g as i32 - self.g as i32) * t as i32 / 255 + self.g as i32) as u8,
@@ -358,7 +358,7 @@ impl Buffer {
         let [r, g, b, a] = color.into();
 
         let (x1, y1) = (rect.x as usize, rect.y as usize);
-        let x2 = rect.offset_2().y as usize;
+        let x2 = rect.offset_2().x as usize;
         let pixel_range =
             &mut self.data.borrow_mut()[(x1 + y1 * self.width) * 3..(x2 + y1 * self.width) * 3];
         if a == 255 {
