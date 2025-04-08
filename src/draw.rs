@@ -406,9 +406,9 @@ impl Buffer {
         }
     }
     /// NOTE: this isn't a perfect circle, but it's very efficient.
-    pub fn circle(&self, center: Offset, radius: i32, color: Rgba) {
-        let mut e = (1 - radius) / 2;
-        let mut x = radius;
+    pub fn circle(&self, center: Offset, radius: u32, color: Rgba) {
+        let mut e = (1 - radius) as i32 / 2;
+        let mut x = radius as i32;
         let mut y = 0;
         while x >= y {
             if y != 0 {
@@ -433,25 +433,25 @@ impl Buffer {
             e += y;
         }
     }
-    pub fn circle_aa(&self, center: Offset, radius: i32, color: Rgba) {
-        let rmin = radius * (radius - 2);
-        let rmax = radius * (radius + 2);
-        for y in 0..=radius {
+    pub fn circle_aa(&self, center: Offset, radius: u32, color: Rgba) {
+        let rmin = (radius * (radius - 2)) as i32;
+        let rmax = (radius * (radius + 2)) as i32;
+        for y in 0..=radius as i32 {
             let sqy = y * y;
-            for x in 0..=radius {
+            for x in 0..=radius as i32 {
                 let sqd = x * x + sqy;
-                if sqd < rmax && sqd >= radius * radius {
+                if sqd < rmax && sqd >= (radius * radius) as i32 {
                     let mut c = rmax - sqd;
                     c *= 256;
-                    c /= 2 * radius;
+                    c /= 2 * radius as i32;
                     if c > 255 {
                         c = 255
                     };
                     quadrant!(self.point(center.x, center.y, x, y, color.set_a(c as u8)));
-                } else if sqd < radius * radius && sqd >= rmin {
+                } else if sqd < (radius * radius) as i32 && sqd >= rmin {
                     let mut c = sqd - rmin;
                     c *= 256;
-                    c /= 2 * radius;
+                    c /= 2 * radius as i32;
                     if c > 255 {
                         c = 255
                     };
@@ -460,30 +460,30 @@ impl Buffer {
             }
         }
     }
-    pub fn fill_circle(&self, center: Offset, radius: i32, color: Rgba) {
-        for y in 0..=radius {
+    pub fn fill_circle(&self, center: Offset, radius: u32, color: Rgba) {
+        for y in 0..=radius as i32 {
             let sqy = y * y;
-            for x in 0..=radius {
+            for x in 0..=radius as i32 {
                 let sqd = x * x + sqy;
-                if sqd <= radius * (1 + radius) {
+                if sqd <= (radius * (1 + radius)) as i32 {
                     quadrant!(self.point(center.x, center.y, x, y, color));
                 }
             }
         }
     }
-    pub fn fill_circle_aa(&self, center: Offset, radius: i32, color: Rgba) {
-        let rmin = radius * (radius);
-        let rmax = radius * (radius + 2);
-        for y in 0..=radius {
+    pub fn fill_circle_aa(&self, center: Offset, radius: u32, color: Rgba) {
+        let rmin = (radius * radius) as i32;
+        let rmax = (radius * (radius + 2)) as i32;
+        for y in 0..=radius as i32 {
             let sqy = y * y;
-            for x in 0..=radius {
+            for x in 0..=radius as i32 {
                 let sqd = x * x + sqy;
                 if sqd < rmin {
                     quadrant!(self.point(center.x, center.y, x, y, color));
                 } else if sqd < rmax {
                     let mut c = rmax - sqd;
                     c *= 256;
-                    c /= 2 * radius;
+                    c /= 2 * radius as i32;
                     if c > 255 {
                         c = 255
                     };
@@ -505,30 +505,35 @@ impl Buffer {
             self.point(p3.x, y, color);
         }
     }
-    pub fn round_rect(&self, rect: Rect, radius: i32, color: Rgba) {
+    pub fn round_rect(&self, rect: Rect, radius: u32, color: Rgba) {
         let p1 = rect.offset();
         let p3 = rect.offset_2();
 
-        for x in p1.x + radius + 1..p3.x - radius {
-            self.point(x, p1.y, color);
-            self.point(x, p3.y, color);
-        }
-        for y in p1.y + radius + 1..p3.y - radius {
-            self.point(p1.x, y, color);
-            self.point(p3.x, y, color);
-        }
-
         let p1_c = Offset {
-            x: p1.x + radius,
-            y: p1.y + radius,
+            x: p1.x + radius as i32,
+            y: p1.y + radius as i32,
         };
         let p3_c = Offset {
-            x: p3.x - radius,
-            y: p3.y - radius,
+            x: p3.x - radius as i32,
+            y: p3.y - radius as i32,
         };
 
-        let mut e = (1 - radius) / 2;
-        let mut x = radius;
+        for y in p1_c.y + 1..p3_c.y {
+            for x in p1.x..=p3.x {
+                self.point(x, y, color);
+            }
+        }
+        for x in p1_c.x + 1..p3_c.x {
+            for y in p1.y..=p1_c.y {
+                self.point(x, y, color);
+            }
+            for y in p3_c.y..=p3.y {
+                self.point(x, y, color);
+            }
+        }
+
+        let mut e = (1 - radius as i32) / 2;
+        let mut x = radius as i32;
         let mut y = 0;
         while x >= y {
             if x != y {
@@ -549,76 +554,24 @@ impl Buffer {
             e += y;
         }
     }
-    pub fn round_rect_aa(&self, rect: Rect, radius: i32, color: Rgba) {
-        let rmin = radius * (radius - 2);
+    pub fn round_rect_aa(&self, rect: Rect, radius: u32, color: Rgba) {
+        let rmin = (radius * (radius - 2)) as i32;
         let rmax = if radius == 0 {
             1
         } else {
             radius * (radius + 2)
-        };
+        } as i32;
 
         let p1 = rect.offset();
         let p3 = rect.offset_2();
 
-        for x in p1.x + radius + 1..p3.x - radius {
-            self.point(x, p1.y, color);
-            self.point(x, p3.y, color);
-        }
-        for y in p1.y + radius + 1..p3.y - radius {
-            self.point(p1.x, y, color);
-            self.point(p3.x, y, color);
-        }
-
         let p1_c = Offset {
-            x: p1.x + radius,
-            y: p1.y + radius,
+            x: p1.x + radius as i32,
+            y: p1.y + radius as i32,
         };
         let p3_c = Offset {
-            x: p3.x - radius,
-            y: p3.y - radius,
-        };
-
-        for y in 0..=radius {
-            let sqy = y * y;
-            for x in 0..=radius {
-                let sqd = x * x + sqy;
-                if sqd < rmax && sqd >= radius * radius {
-                    let mut c = rmax - sqd;
-                    c *= 256;
-                    c /= 2 * radius;
-                    if c > 255 {
-                        c = 255
-                    };
-                    self.point(p1_c.x - x, p1_c.y - y, color.set_a(c as u8));
-                    self.point(p3_c.x + x, p1_c.y - y, color.set_a(c as u8));
-                    self.point(p1_c.x - x, p3_c.y + y, color.set_a(c as u8));
-                    self.point(p3_c.x + x, p3_c.y + y, color.set_a(c as u8));
-                } else if sqd < radius * radius && sqd >= rmin {
-                    let mut c = sqd - rmin;
-                    c *= 256;
-                    c /= 2 * radius;
-                    if c > 255 {
-                        c = 255
-                    };
-                    self.point(p1_c.x - x, p1_c.y - y, color.set_a(c as u8));
-                    self.point(p3_c.x + x, p1_c.y - y, color.set_a(c as u8));
-                    self.point(p1_c.x - x, p3_c.y + y, color.set_a(c as u8));
-                    self.point(p3_c.x + x, p3_c.y + y, color.set_a(c as u8));
-                }
-            }
-        }
-    }
-    pub fn fill_round_rect(&self, rect: Rect, radius: i32, color: Rgba) {
-        let p1 = rect.offset();
-        let p3 = rect.offset_2();
-
-        let p1_c = Offset {
-            x: p1.x + radius,
-            y: p1.y + radius,
-        };
-        let p3_c = Offset {
-            x: p3.x - radius,
-            y: p3.y - radius,
+            x: p3.x - radius as i32,
+            y: p3.y - radius as i32,
         };
 
         for y in p1_c.y + 1..p3_c.y {
@@ -635,11 +588,68 @@ impl Buffer {
             }
         }
 
-        for y in 0..=radius {
+        for y in 0..=radius as i32 {
             let sqy = y * y;
-            for x in 0..=radius {
+            for x in 0..=radius as i32 {
                 let sqd = x * x + sqy;
-                if sqd <= radius * (2 + radius) {
+                if sqd < rmax && sqd >= (radius * radius) as i32 {
+                    let mut c = rmax - sqd;
+                    c *= 256;
+                    c /= 2 * radius as i32;
+                    if c > 255 {
+                        c = 255
+                    };
+                    self.point(p1_c.x - x, p1_c.y - y, color.set_a(c as u8));
+                    self.point(p3_c.x + x, p1_c.y - y, color.set_a(c as u8));
+                    self.point(p1_c.x - x, p3_c.y + y, color.set_a(c as u8));
+                    self.point(p3_c.x + x, p3_c.y + y, color.set_a(c as u8));
+                } else if sqd < (radius * radius) as i32 && sqd >= rmin {
+                    let mut c = sqd - rmin;
+                    c *= 256;
+                    c /= 2 * radius as i32;
+                    if c > 255 {
+                        c = 255
+                    };
+                    self.point(p1_c.x - x, p1_c.y - y, color.set_a(c as u8));
+                    self.point(p3_c.x + x, p1_c.y - y, color.set_a(c as u8));
+                    self.point(p1_c.x - x, p3_c.y + y, color.set_a(c as u8));
+                    self.point(p3_c.x + x, p3_c.y + y, color.set_a(c as u8));
+                }
+            }
+        }
+    }
+    pub fn fill_round_rect(&self, rect: Rect, radius: u32, color: Rgba) {
+        let p1 = rect.offset();
+        let p3 = rect.offset_2();
+
+        let p1_c = Offset {
+            x: p1.x + radius as i32,
+            y: p1.y + radius as i32,
+        };
+        let p3_c = Offset {
+            x: p3.x - radius as i32,
+            y: p3.y - radius as i32,
+        };
+
+        for y in p1_c.y + 1..p3_c.y {
+            for x in p1.x..=p3.x {
+                self.point(x, y, color);
+            }
+        }
+        for x in p1_c.x + 1..p3_c.x {
+            for y in p1.y..=p1_c.y {
+                self.point(x, y, color);
+            }
+            for y in p3_c.y..=p3.y {
+                self.point(x, y, color);
+            }
+        }
+
+        for y in 0..=radius as i32 {
+            let sqy = y * y;
+            for x in 0..=radius as i32 {
+                let sqd = x * x + sqy;
+                if sqd <= (radius * (2 + radius)) as i32 {
                     self.point(p1_c.x - x, p1_c.y - y, color);
                     self.point(p3_c.x + x, p1_c.y - y, color);
                     self.point(p1_c.x - x, p3_c.y + y, color);
@@ -648,20 +658,20 @@ impl Buffer {
             }
         }
     }
-    pub fn fill_round_rect_aa(&self, rect: Rect, radius: i32, color: Rgba) {
-        let rmin = if radius == 0 { 1 } else { radius * (radius) };
-        let rmax = radius * (radius + 2);
+    pub fn fill_round_rect_aa(&self, rect: Rect, radius: u32, color: Rgba) {
+        let rmin = if radius == 0 { 1 } else { radius * radius } as i32;
+        let rmax = (radius * (radius + 2)) as i32;
 
         let p1 = rect.offset();
         let p3 = rect.offset_2();
 
         let p1_c = Offset {
-            x: p1.x + radius,
-            y: p1.y + radius,
+            x: p1.x + radius as i32,
+            y: p1.y + radius as i32,
         };
         let p3_c = Offset {
-            x: p3.x - radius,
-            y: p3.y - radius,
+            x: p3.x - radius as i32,
+            y: p3.y - radius as i32,
         };
 
         for y in p1_c.y + 1..p3_c.y {
@@ -677,9 +687,9 @@ impl Buffer {
                 self.point(x, y, color);
             }
         }
-        for y in 0..=radius {
+        for y in 0..=radius as i32 {
             let sqy = y * y;
-            for x in 0..=radius {
+            for x in 0..=radius as i32 {
                 let sqd = x * x + sqy;
                 if sqd < rmin {
                     self.point(p1_c.x - x, p1_c.y - y, color);
@@ -689,7 +699,7 @@ impl Buffer {
                 } else if sqd < rmax {
                     let mut c = rmax - sqd;
                     c *= 256;
-                    c /= 2 * radius;
+                    c /= 2 * radius as i32;
                     if c > 255 {
                         c = 255
                     };
