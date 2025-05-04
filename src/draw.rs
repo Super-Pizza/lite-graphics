@@ -518,18 +518,13 @@ impl Buffer {
             y: p3.y - radius as i32,
         };
 
-        for y in p1_c.y + 1..p3_c.y {
-            for x in p1.x..=p3.x {
-                self.point(x, y, color);
-            }
-        }
         for x in p1_c.x + 1..p3_c.x {
-            for y in p1.y..=p1_c.y {
-                self.point(x, y, color);
-            }
-            for y in p3_c.y..=p3.y {
-                self.point(x, y, color);
-            }
+            self.point(x, p1.y, color);
+            self.point(x, p3.y, color);
+        }
+        for y in p1_c.y + 1..p3_c.y {
+            self.point(p1.x, y, color);
+            self.point(p3.x, y, color);
         }
 
         let mut e = (1 - radius as i32) / 2;
@@ -574,18 +569,13 @@ impl Buffer {
             y: p3.y - radius as i32,
         };
 
-        for y in p1_c.y + 1..p3_c.y {
-            for x in p1.x..=p3.x {
-                self.point(x, y, color);
-            }
-        }
         for x in p1_c.x + 1..p3_c.x {
-            for y in p1.y..=p1_c.y {
-                self.point(x, y, color);
-            }
-            for y in p3_c.y..=p3.y {
-                self.point(x, y, color);
-            }
+            self.point(x, p1.y, color);
+            self.point(x, p3.y, color);
+        }
+        for y in p1_c.y + 1..p3_c.y {
+            self.point(p1.x, y, color);
+            self.point(p3.x, y, color);
         }
 
         for y in 0..=radius as i32 {
