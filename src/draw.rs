@@ -407,7 +407,7 @@ impl Buffer {
     }
     /// NOTE: this isn't a perfect circle, but it's very efficient.
     pub fn circle(&self, center: Offset, radius: u32, color: Rgba) {
-        let mut e = (1 - radius) as i32 / 2;
+        let mut e = (1 - radius as i32) / 2;
         let mut x = radius as i32;
         let mut y = 0;
         while x >= y {
