@@ -464,11 +464,15 @@ impl Buffer {
     /// Draws a circle arc from angle1 to angle2 in radians, with positive angles measured counterclockwise from positive x axis.
     pub fn circle_arc(&self, center: Offset, radius: u32, angle1: f32, angle2: f32, color: Rgba) {
         let (angle1, angle2) = if angle2 < angle1 % TAU32 {
-            (angle1 % TAU32, angle2 + TAU32)
+            // Corner case where the arc overlaps angle 0.
+            self.circle_arc(center, radius, angle1, TAU32, color);
+            self.circle_arc(center, radius, 0., angle2, color);
+            return;
         } else if angle2 - angle1 >= TAU32 {
             (0., TAU32)
         } else {
-            (angle1 % TAU32, angle2 % TAU32)
+            // The subtractions make zero and TAU become TAU, not zero.
+            (angle1 % TAU32, TAU32 - (TAU32 - angle2) % TAU32)
         };
 
         let mut e = (1 - radius as i32) / 2;
@@ -525,11 +529,15 @@ impl Buffer {
         color: Rgba,
     ) {
         let (angle1, angle2) = if angle2 < angle1 % TAU32 {
-            (angle1 % TAU32, angle2 + TAU32)
+            // Corner case where the arc overlaps angle 0.
+            self.circle_arc_aa(center, radius, angle1, TAU32, color);
+            self.circle_arc_aa(center, radius, 0., angle2, color);
+            return;
         } else if angle2 - angle1 >= TAU32 {
             (0., TAU32)
         } else {
-            (angle1 % TAU32, angle2 % TAU32)
+            // The subtractions make zero and TAU become TAU, not zero.
+            (angle1 % TAU32, TAU32 - (TAU32 - angle2) % TAU32)
         };
 
         let rmin = (radius * (radius - 2)) as i32;
