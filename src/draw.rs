@@ -1,3 +1,4 @@
+use core::f32::consts::{FRAC_PI_2 as PI_2_32, PI as PI32, TAU as TAU32};
 use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{Offset, Rect, Size};
@@ -456,6 +457,114 @@ impl Buffer {
                         c = 255
                     };
                     quadrant!(self.point(center.x, center.y, x, y, color.set_a(c as u8)));
+                }
+            }
+        }
+    }
+    /// Draws a circle arc from angle1 to angle2 in radians, with positive angles measured counterclockwise from positive x axis.
+    pub fn circle_arc(&self, center: Offset, radius: u32, angle1: f32, angle2: f32, color: Rgba) {
+        let (angle1, angle2) = if angle2 < angle1 % TAU32 {
+            (angle1 % TAU32, angle2 + TAU32)
+        } else if angle2 - angle1 >= TAU32 {
+            (0., TAU32)
+        } else {
+            (angle1 % TAU32, angle2 % TAU32)
+        };
+
+        let mut e = (1 - radius as i32) / 2;
+        let mut x = radius as i32;
+        let mut y = 0;
+        while x >= y {
+            let angle = (y as f32).atan2(x as f32);
+            if y != 0 {
+                if x != y {
+                    if angle1 < 3. * PI_2_32 - angle && 3. * PI_2_32 - angle <= angle2 {
+                        self.point(center.x - y, center.y + x, color);
+                    }
+                    if angle1 < PI_2_32 - angle && PI_2_32 - angle <= angle2 {
+                        self.point(center.x + y, center.y - x, color);
+                    }
+                }
+                if angle1 < angle + PI32 && angle + PI32 <= angle2 {
+                    self.point(center.x - x, center.y + y, color);
+                }
+                if angle1 < angle && angle <= angle2 {
+                    self.point(center.x + x, center.y - y, color);
+                }
+            }
+            if x != y {
+                if angle1 < angle + 3. * PI_2_32 && angle + 3. * PI_2_32 <= angle2 {
+                    self.point(center.x + y, center.y + x, color);
+                }
+                if angle1 < angle + PI_2_32 && angle + PI_2_32 <= angle2 {
+                    self.point(center.x - y, center.y - x, color);
+                }
+            }
+            if angle1 < TAU32 - angle && TAU32 - angle <= angle2 {
+                self.point(center.x + x, center.y + y, color);
+            }
+            if angle1 < PI32 - angle && PI32 - angle <= angle2 {
+                self.point(center.x - x, center.y - y, color);
+            }
+
+            y += 1;
+            if e >= 0 {
+                x -= 1;
+                e -= x;
+            }
+            e += y;
+        }
+    }
+    /// Draws a circle arc from angle1 to angle2 in radians, with positive angles measured counterclockwise from positive x axis.
+    pub fn circle_arc_aa(
+        &self,
+        center: Offset,
+        radius: u32,
+        angle1: f32,
+        angle2: f32,
+        color: Rgba,
+    ) {
+        let (angle1, angle2) = if angle2 < angle1 % TAU32 {
+            (angle1 % TAU32, angle2 + TAU32)
+        } else if angle2 - angle1 >= TAU32 {
+            (0., TAU32)
+        } else {
+            (angle1 % TAU32, angle2 % TAU32)
+        };
+
+        let rmin = (radius * (radius - 2)) as i32;
+        let rmax = (radius * (radius + 2)) as i32;
+        for y in 0..=radius as i32 {
+            let sqy = y * y;
+            for x in 0..=radius as i32 {
+                let angle = (y as f32).atan2(x as f32);
+
+                let sqd = x * x + sqy;
+                let mut c = if sqd < rmax && sqd >= (radius * radius) as i32 {
+                    rmax - sqd
+                } else if sqd < (radius * radius) as i32 && sqd >= rmin {
+                    sqd - rmin
+                } else {
+                    continue;
+                };
+                c *= 256;
+                c /= 2 * radius as i32;
+                if c > 255 {
+                    c = 255
+                };
+                if x != 0 {
+                    if y != 0 && angle1 < PI32 - angle && PI32 - angle <= angle2 {
+                        self.point(center.x - x, center.y - y, color.set_a(c as u8));
+                    }
+                    if angle1 < angle + PI32 && angle + PI32 <= angle2 {
+                        self.point(center.x - x, center.y + y, color.set_a(c as u8));
+                    }
+                }
+                if y != 0 && angle1 < angle && angle <= angle2 {
+                    self.point(center.x + x, center.y - y, color.set_a(c as u8));
+                }
+                if angle1 < TAU32 - angle && TAU32 - angle <= angle2 {
+                    self.point(center.x + x, center.y + y, color.set_a(c as u8));
                 }
             }
         }
