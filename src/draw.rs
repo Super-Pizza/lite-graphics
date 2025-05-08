@@ -609,6 +609,139 @@ impl Buffer {
             }
         }
     }
+    pub fn circle_pie(&self, center: Offset, radius: u32, angle1: f32, angle2: f32, color: Rgba) {
+        let (angle1, angle2) = if angle2 < angle1 % TAU32 {
+            // Corner case where the arc overlaps angle 0.
+            self.circle_pie(center, radius, angle1, TAU32, color);
+            self.circle_pie(center, radius, 0., angle2, color);
+            return;
+        } else if angle2 - angle1 >= TAU32 {
+            (0., TAU32)
+        } else {
+            // The subtractions make zero and TAU become TAU, not zero.
+            (angle1 % TAU32, TAU32 - (TAU32 - angle2) % TAU32)
+        };
+        for y in 0..=radius as i32 {
+            let sqy = y * y;
+            for x in 0..=radius as i32 {
+                let angle = (y as f32).atan2(x as f32);
+
+                let sqd = x * x + sqy;
+                if sqd > (radius * (1 + radius)) as i32 {
+                    continue;
+                }
+                if x != 0 {
+                    if y != 0 && angle1 < PI32 - angle && PI32 - angle <= angle2 {
+                        self.point(center.x - x, center.y - y, color);
+                    }
+                    if angle1 < angle + PI32 && angle + PI32 <= angle2 {
+                        self.point(center.x - x, center.y + y, color);
+                    }
+                }
+                if y != 0 && angle1 < angle && angle <= angle2 {
+                    self.point(center.x + x, center.y - y, color);
+                }
+                if angle1 < TAU32 - angle && TAU32 - angle <= angle2 {
+                    self.point(center.x + x, center.y + y, color);
+                }
+            }
+        }
+    }
+    pub fn circle_pie_aa(
+        &self,
+        center: Offset,
+        radius: u32,
+        angle1: f32,
+        angle2: f32,
+        color: Rgba,
+    ) {
+        let (angle1, angle2) = if angle2 < angle1 % TAU32 {
+            // Corner case where the arc overlaps angle 0.
+            self.circle_pie_aa(center, radius, angle1, TAU32, color);
+            self.circle_pie_aa(center, radius, 0., angle2, color);
+            return;
+        } else if angle2 - angle1 >= TAU32 {
+            (0., TAU32)
+        } else {
+            // The subtractions make zero and TAU become TAU, not zero.
+            (angle1 % TAU32, TAU32 - (TAU32 - angle2) % TAU32)
+        };
+
+        let rmin = (radius * radius) as i32;
+        let rmax = (radius * (radius + 2)) as i32;
+        for y in 0..=radius as i32 {
+            let sqy = y * y;
+            for x in 0..=radius as i32 {
+                let angle = (y as f32).atan2(x as f32);
+
+                let sqd = x * x + sqy;
+                let c = if sqd < rmin {
+                    255
+                } else if sqd < rmax {
+                    255.min((rmax - sqd) * 256 / (2 * radius as i32))
+                } else {
+                    continue;
+                };
+
+                let spacing = 1.0 / (sqd as f32).sqrt();
+
+                let angle1_min = angle1 - spacing;
+                let angle1_max = angle1 + spacing;
+                let angle2_min = angle2 - spacing;
+                let angle2_max = angle2 + spacing;
+
+                let angle_ = if angle2_max > TAU32 {
+                    angle + TAU32
+                } else {
+                    angle
+                };
+
+                let angle_grad = |angle: f32| {
+                    let c1 = if angle1_max < angle && angle <= angle2_min {
+                        1.
+                    } else if angle > angle1_min && angle <= angle1_max {
+                        (angle - angle1_min) / (2.0 * spacing)
+                    } else if angle > angle2_min && angle <= angle2_max {
+                        (angle2_max - angle) / (2.0 * spacing)
+                    } else {
+                        0.
+                    };
+                    c as f32 * c1
+                };
+
+                if x != 0 {
+                    if y != 0 && angle1_min < PI32 - angle && PI32 - angle <= angle2_max {
+                        self.point(
+                            center.x - x,
+                            center.y - y,
+                            color.set_a(angle_grad(PI32 - angle) as u8),
+                        );
+                    }
+                    if angle1_min < angle + PI32 && angle + PI32 <= angle2_max {
+                        self.point(
+                            center.x - x,
+                            center.y + y,
+                            color.set_a(angle_grad(PI32 + angle) as u8),
+                        );
+                    }
+                }
+                if y != 0 && angle1_min < TAU32 - angle && TAU32 - angle <= angle2_max {
+                    self.point(
+                        center.x + x,
+                        center.y + y,
+                        color.set_a(angle_grad(TAU32 - angle) as u8),
+                    );
+                }
+                if angle1_min < angle_ && angle_ <= angle2_max {
+                    self.point(
+                        center.x + x,
+                        center.y - y,
+                        color.set_a(angle_grad(angle) as u8),
+                    );
+                }
+            }
+        }
+    }
     pub fn rect(&self, rect: Rect, color: Rgba) {
         let p1 = rect.offset();
         let p3 = rect.offset_2();
