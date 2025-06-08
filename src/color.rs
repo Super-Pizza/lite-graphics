@@ -71,75 +71,57 @@ impl Rgba {
 
     // Parse hex string (const fn).
     pub const fn hex(val: &'static str) -> Option<Self> {
-        const fn u8_from_nibs(n1: &u8, n2: &u8) -> Option<u8> {
-            #[rustfmt::skip]
-            const TABLE: [u8; 128] = [
-                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                0x0,  0x1,  0x2,  0x3,  0x4,  0x5,  0x6,  0x7,  0x8,  0x9,  0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                0xff, 0xa,  0xb,  0xc,  0xd,  0xe,  0xf,  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                0xff, 0xa,  0xb,  0xc,  0xd,  0xe,  0xf,  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-            ];
-            if TABLE[*n1 as usize] == 0xff || TABLE[*n2 as usize] == 0xff {
+        const fn hex_decode(n1: u8, n2: u8) -> Option<u8> {
+            if n1 < 0x30 || n2 < 0x30 {
                 return None;
-            };
-            Some(TABLE[*n1 as usize] * 16 + TABLE[*n2 as usize])
+            }
+            let n1 = (n1 & 0xdf) - 0x10;
+            let n2 = (n2 & 0xdf) - 0x10;
+            if (n1 > 0x9 && n1 < 0x31) || (n2 > 0x9 && n2 < 0x31) || n1 > 0x36 || n2 > 0x36 {
+                return None;
+            }
+            Some((n1 - 0x27 * (n1 >> 5)) * 16 + (n2 - 0x27 * (n2 >> 5)))
         }
-        const fn get<T>(s: &[T], n: usize) -> Option<&T> {
+        const fn get<T: Copy>(s: &[T], n: usize) -> Option<T> {
             if s.len() > n {
-                Some(&s[n])
+                Some(s[n])
             } else {
                 None
             }
         }
-        let iter = val.as_bytes();
-        if iter[0] != 35 {
+
+        let bytes = val.as_bytes();
+        if bytes[0] != 35 {
             return None;
         }
-        let (Some(r1), Some(r2), Some(g1)) = (get(iter, 1), get(iter, 2), get(iter, 3)) else {
-            return None;
-        };
-        let g2 = get(iter, 4);
-        let b1 = get(iter, 5);
-        let b2 = get(iter, 6);
-        let a1 = get(iter, 7);
-        let a2 = get(iter, 8);
 
-        let (r, g, b, a) = if b1.is_none() {
-            let a = if let Some(a) = g2 {
-                u8_from_nibs(a, a)
-            } else {
-                Some(255)
-            };
-            // 12/16 bits
-            (
-                u8_from_nibs(r1, r1),
-                u8_from_nibs(r2, r2),
-                u8_from_nibs(g1, g1),
-                a,
-            )
-        } else if b2.is_none() || a1.is_some() && a2.is_none() {
+        let (Some(r1), Some(r2), Some(g1)) = (get(bytes, 1), get(bytes, 2), get(bytes, 3)) else {
             return None;
-        } else {
-            let a = if let (Some(a1), Some(a2)) = (a1, a2) {
-                u8_from_nibs(a1, a2)
+        };
+        let g2 = get(bytes, 4);
+        let b1 = get(bytes, 5);
+        let b2 = get(bytes, 6);
+        let mut a1 = get(bytes, 7);
+        let mut a2 = get(bytes, 8);
+
+        let (r, g, b) = if b1.is_none() {
+            a1 = g2;
+            a2 = g2;
+            (hex_decode(r1, r1), hex_decode(r2, r2), hex_decode(g1, g1))
+        } else if let (Some(g2), Some(b1), Some(b2)) = (g2, b1, b2) {
+            (hex_decode(r1, r2), hex_decode(g1, g2), hex_decode(b1, b2))
+            } else {
+            return None;
+        };
+
+        let a = if let (Some(a1), Some(a2)) = (a1, a2) {
+            hex_decode(a1, a2)
+        } else if a1.is_some() {
+            return None;
             } else {
                 Some(255)
             };
-            let (Some(g2), Some(b1), Some(b2)) = (g2, b1, b2) else {
-                return None;
-            };
-            // 24/32 bits
-            (
-                u8_from_nibs(r1, r2),
-                u8_from_nibs(g1, g2),
-                u8_from_nibs(b1, b2),
-                a,
-            )
-        };
+
         match (r, g, b, a) {
             (Some(r), Some(g), Some(b), Some(a)) => Some(Self { r, g, b, a }),
             _ => None,
