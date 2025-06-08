@@ -1,5 +1,6 @@
 use std::ops::{Add, Sub, SubAssign};
 
+pub mod color;
 pub mod draw;
 #[cfg(feature = "window")]
 pub mod window;

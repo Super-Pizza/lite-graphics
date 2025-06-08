@@ -1,11 +1,8 @@
-use lite_graphics::{
-    draw::{Buffer, Rgba},
-    Offset,
-};
+use lite_graphics::{color::Rgba, draw::Buffer, Offset};
 
 fn main() {
     let buf = Buffer::new(400, 300);
-    buf.circle_arc_aa(Offset { x: 200, y: 150 }, 50, 0., 1., Rgba::YELLOW);
+    buf.circle_arc_aa(Offset { x: 200, y: 150 }, 50, 0., 1., Rgba::ORANGE);
     buf.circle_arc(Offset { x: 200, y: 150 }, 50, 1., 2., Rgba::BLUE);
     buf.circle_arc_aa(Offset { x: 200, y: 150 }, 50, 2., 3., Rgba::GREEN);
     buf.circle_arc(Offset { x: 200, y: 150 }, 50, 3., 4., Rgba::CYAN);

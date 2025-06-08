@@ -3,151 +3,7 @@ use std::{cell::RefCell, mem, rc::Rc};
 
 use crate::{Offset, Rect, Size};
 
-#[derive(Clone, Copy)]
-pub struct Rgba {
-    r: u8,
-    g: u8,
-    b: u8,
-    a: u8,
-}
-
-impl From<[u8; 4]> for Rgba {
-    fn from(value: [u8; 4]) -> Self {
-        Rgba {
-            r: value[0],
-            g: value[1],
-            b: value[2],
-            a: value[3],
-        }
-    }
-}
-
-impl From<[u8; 3]> for Rgba {
-    fn from(value: [u8; 3]) -> Self {
-        Rgba {
-            r: value[0],
-            g: value[1],
-            b: value[2],
-            a: 255,
-        }
-    }
-}
-
-impl From<Rgba> for [u8; 4] {
-    fn from(this: Rgba) -> Self {
-        [this.r, this.g, this.b, this.a]
-    }
-}
-
-impl From<Rgba> for [u8; 3] {
-    fn from(this: Rgba) -> Self {
-        [this.r, this.g, this.b]
-    }
-}
-
-impl Rgba {
-    pub const RED: Self = Self::hex("#f00").unwrap();
-    pub const GREEN: Self = Self::hex("#0f0").unwrap();
-    pub const BLUE: Self = Self::hex("#00f").unwrap();
-    pub const YELLOW: Self = Self::hex("#ff0").unwrap();
-    pub const CYAN: Self = Self::hex("#0ff").unwrap();
-    pub const MAGENTA: Self = Self::hex("#f0f").unwrap();
-    pub const BLACK: Self = Self::hex("#000").unwrap();
-    pub const WHITE: Self = Self::hex("#fff").unwrap();
-
-    // Parse hex string (const fn).
-    pub const fn hex(val: &'static str) -> Option<Self> {
-        const fn u8_from_nibs(n1: &u8, n2: &u8) -> Option<u8> {
-            #[rustfmt::skip]
-            const TABLE: [u8; 128] = [
-                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                0x0,  0x1,  0x2,  0x3,  0x4,  0x5,  0x6,  0x7,  0x8,  0x9,  0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                0xff, 0xa,  0xb,  0xc,  0xd,  0xe,  0xf,  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                0xff, 0xa,  0xb,  0xc,  0xd,  0xe,  0xf,  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-            ];
-            if TABLE[*n1 as usize] == 0xff || TABLE[*n2 as usize] == 0xff {
-                return None;
-            };
-            Some(TABLE[*n1 as usize] * 16 + TABLE[*n2 as usize])
-        }
-        const fn get<T>(s: &[T], n: usize) -> Option<&T> {
-            if s.len() > n {
-                Some(&s[n])
-            } else {
-                None
-            }
-        }
-        let iter = val.as_bytes();
-        if iter[0] != 35 {
-            return None;
-        }
-        let (Some(r1), Some(r2), Some(g1)) = (get(iter, 1), get(iter, 2), get(iter, 3)) else {
-            return None;
-        };
-        let g2 = get(iter, 4);
-        let b1 = get(iter, 5);
-        let b2 = get(iter, 6);
-        let a1 = get(iter, 7);
-        let a2 = get(iter, 8);
-
-        let (r, g, b, a) = if b1.is_none() {
-            let a = if let Some(a) = g2 {
-                u8_from_nibs(a, a)
-            } else {
-                Some(255)
-            };
-            // 12/16 bits
-            (
-                u8_from_nibs(r1, r1),
-                u8_from_nibs(r2, r2),
-                u8_from_nibs(g1, g1),
-                a,
-            )
-        } else if b2.is_none() || a1.is_some() && a2.is_none() {
-            return None;
-        } else {
-            let a = if let (Some(a1), Some(a2)) = (a1, a2) {
-                u8_from_nibs(a1, a2)
-            } else {
-                Some(255)
-            };
-            let (Some(g2), Some(b1), Some(b2)) = (g2, b1, b2) else {
-                return None;
-            };
-            // 24/32 bits
-            (
-                u8_from_nibs(r1, r2),
-                u8_from_nibs(g1, g2),
-                u8_from_nibs(b1, b2),
-                a,
-            )
-        };
-        match (r, g, b, a) {
-            (Some(r), Some(g), Some(b), Some(a)) => Some(Self { r, g, b, a }),
-            _ => None,
-        }
-    }
-    pub const fn set_a(self, a: u8) -> Self {
-        Self {
-            r: self.r,
-            g: self.g,
-            b: self.b,
-            a: (a as u16 * self.a as u16 / 255) as u8,
-        }
-    }
-    pub const fn lerp(self, other: Self, t: u8) -> Self {
-        Self {
-            r: ((other.r as i32 - self.r as i32) * t as i32 / 255 + self.r as i32) as u8,
-            g: ((other.g as i32 - self.g as i32) * t as i32 / 255 + self.g as i32) as u8,
-            b: ((other.b as i32 - self.b as i32) * t as i32 / 255 + self.b as i32) as u8,
-            a: ((other.a as i32 - self.a as i32) * t as i32 / 255 + self.a as i32) as u8,
-        }
-    }
-}
+use crate::color::Color;
 
 macro_rules! quadrant {
     ($($fn:ident).+($cx:expr,$cy:expr,$x:expr,$y:expr,$color:expr)) => {
@@ -198,13 +54,13 @@ impl Buffer {
         }
     }
     /// Draws a point of the specified color
-    pub fn point(&self, x: i32, y: i32, color: Rgba) {
+    pub fn point(&self, x: i32, y: i32, color: &impl Color) {
         let x = x + self.offs.x;
         let y = y + self.offs.y;
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
             return;
         }
-        let [r, g, b, a] = color.into();
+        let [r, g, b, a] = color.get(Offset { x, y }).into();
         let (x, y) = (x as usize, y as usize);
         let pixel_range =
             &mut self.data.borrow_mut()[(x + y * self.width) * 3..(x + y * self.width) * 3 + 3];
@@ -220,25 +76,30 @@ impl Buffer {
         }
     }
     /// Fills a rectangle, clipped to the buffer's size
-    pub fn fill_rect(&self, rect: Rect, color: Rgba) {
+    pub fn fill_rect(&self, rect: Rect, color: impl Color) {
         let rect = rect + self.offs;
         let rect = rect.clamp(Size::from((self.width as u32, self.height as u32)).into());
         let p1 = rect.offset();
         let p2 = rect.offset_2();
-        let [r, g, b, a] = color.into();
 
         let (x1, y1, x2, y2) = (p1.x as usize, p1.y as usize, p2.x as usize, p2.y as usize);
         for row in y1..y2 {
             let pixel_range = &mut self.data.borrow_mut()
                 [(x1 + row * self.width) * 3..(x2 + row * self.width) * 3];
-            if a == 255 {
-                pixel_range.copy_from_slice(&[r, g, b].repeat(x2 - x1));
-            } else {
-                for i in x1..x2 {
+            for i in x1..x2 {
+                let [r, g, b, a] = color
+                    .get(Offset {
+                        x: i as i32,
+                        y: row as i32,
+                    })
+                    .into();
+                let r_i = (i - x1) * 3;
+                let g_i = r_i + 1;
+                let b_i = r_i + 2;
+                if a == 255 {
+                    pixel_range[r_i..r_i + 3].copy_from_slice(&[r, g, b]);
+                } else {
                     let (r, g, b, a) = (r as i32, g as i32, b as i32, a as i32);
-                    let r_i = (i - x1) * 3;
-                    let g_i = r_i + 1;
-                    let b_i = r_i + 2;
                     pixel_range[r_i] =
                         ((r - pixel_range[r_i] as i32) * a / 255 + pixel_range[r_i] as i32) as u8;
                     pixel_range[g_i] =
@@ -249,7 +110,7 @@ impl Buffer {
             }
         }
     }
-    pub fn line(&self, mut p1: Offset, mut p2: Offset, color: Rgba) {
+    pub fn line(&self, mut p1: Offset, mut p2: Offset, color: impl Color) {
         let steep = if p1.x.abs_diff(p2.x) < p1.y.abs_diff(p2.y) {
             mem::swap(&mut p1.x, &mut p1.y);
             mem::swap(&mut p2.x, &mut p2.y);
@@ -273,9 +134,9 @@ impl Buffer {
 
         for x in p1.x..=p2.x {
             if steep {
-                self.point(y, x, color);
+                self.point(y, x, &color);
             } else {
-                self.point(x, y, color);
+                self.point(x, y, &color);
             }
             if d > 0 {
                 y += yi;
@@ -285,7 +146,7 @@ impl Buffer {
             }
         }
     }
-    pub fn line_aa(&self, mut p1: Offset, mut p2: Offset, color: Rgba) {
+    pub fn line_aa(&self, mut p1: Offset, mut p2: Offset, color: impl Color) {
         let steep = if p1.x.abs_diff(p2.x) < p1.y.abs_diff(p2.y) {
             mem::swap(&mut p1.x, &mut p1.y);
             mem::swap(&mut p2.x, &mut p2.y);
@@ -308,9 +169,9 @@ impl Buffer {
         let xpxl1 = xend;
         let ypxl1 = yend;
         if steep {
-            self.point(ypxl1 as i32, xpxl1 as i32, color);
+            self.point(ypxl1 as i32, xpxl1 as i32, &color);
         } else {
-            self.point(xpxl1 as i32, ypxl1 as i32, color);
+            self.point(xpxl1 as i32, ypxl1 as i32, &color);
         }
         let mut intery = yend + gradient;
 
@@ -320,9 +181,9 @@ impl Buffer {
         let xpxl2 = xend;
         let ypxl2 = yend;
         if steep {
-            self.point(ypxl2 as i32, xpxl2 as i32, color);
+            self.point(ypxl2 as i32, xpxl2 as i32, &color);
         } else {
-            self.point(xpxl2 as i32, ypxl2 as i32, color);
+            self.point(xpxl2 as i32, ypxl2 as i32, &color);
         }
 
         // main loop
@@ -331,12 +192,12 @@ impl Buffer {
                 self.point(
                     intery as i32,
                     x,
-                    color.set_a(255 - (intery.fract() * 255.0) as u8),
+                    &color.set_a(255 - (intery.fract() * 255.0) as u8),
                 );
                 self.point(
                     intery as i32 + 1,
                     x,
-                    color.set_a((intery.fract() * 255.0) as u8),
+                    &color.set_a((intery.fract() * 255.0) as u8),
                 );
                 intery += gradient;
             }
@@ -345,38 +206,43 @@ impl Buffer {
                 self.point(
                     x,
                     intery as i32,
-                    color.set_a(255 - (intery.fract() * 255.0) as u8),
+                    &color.set_a(255 - (intery.fract() * 255.0) as u8),
                 );
                 self.point(
                     x,
                     intery as i32 + 1,
-                    color.set_a((intery.fract() * 255.0) as u8),
+                    &color.set_a((intery.fract() * 255.0) as u8),
                 );
                 intery += gradient;
             }
         }
     }
-    pub fn line_h(&self, p1: Offset, length: i32, color: Rgba) {
+    pub fn line_h(&self, p1: Offset, length: i32, color: impl Color) {
         let size = Size {
             w: length as _,
             h: 1,
         };
         let rect = Rect::from((p1 + self.offs, size))
             .clamp(Size::from((self.width as u32, self.height as u32)).into());
-        let [r, g, b, a] = color.into();
 
         let (x1, y1) = (rect.x as usize, rect.y as usize);
         let x2 = rect.offset_2().x as usize;
         let pixel_range =
             &mut self.data.borrow_mut()[(x1 + y1 * self.width) * 3..(x2 + y1 * self.width) * 3];
-        if a == 255 {
-            pixel_range.copy_from_slice(&[r, g, b].repeat(x2 - x1));
-        } else {
-            for i in x1..x2 {
+        for i in x1..x2 {
+            let [r, g, b, a] = color
+                .get(Offset {
+                    x: i as i32,
+                    y: y1 as i32,
+                })
+                .into();
+            let r_i = (i - x1) * 3;
+            let g_i = r_i + 1;
+            let b_i = r_i + 2;
+            if a == 255 {
+                pixel_range[r_i..r_i + 3].copy_from_slice(&[r, g, b]);
+            } else {
                 let (r, g, b, a) = (r as i32, g as i32, b as i32, a as i32);
-                let r_i = (i - x1) * 3;
-                let g_i = r_i + 1;
-                let b_i = r_i + 2;
                 pixel_range[r_i] =
                     ((r - pixel_range[r_i] as i32) * a / 255 + pixel_range[r_i] as i32) as u8;
                 pixel_range[g_i] =
@@ -386,18 +252,23 @@ impl Buffer {
             }
         }
     }
-    pub fn line_v(&self, p1: Offset, length: i32, color: Rgba) {
+    pub fn line_v(&self, p1: Offset, length: i32, color: impl Color) {
         let size = Size {
             w: 1,
             h: length as _,
         };
         let rect = Rect::from((p1 + self.offs, size))
             .clamp(Size::from((self.width as u32, self.height as u32)).into());
-        let [r, g, b, a] = color.into();
 
         let (x1, y1) = (rect.x as usize, rect.y as usize);
         let y2 = rect.offset_2().y as usize;
         for row in y1..y2 {
+            let [r, g, b, a] = color
+                .get(Offset {
+                    x: x1 as i32,
+                    y: row as i32,
+                })
+                .into();
             let pixel_range = &mut self.data.borrow_mut()
                 [(x1 + row * self.width) * 3..(x1 + 1 + row * self.width) * 3];
             if a == 255 {
@@ -414,25 +285,25 @@ impl Buffer {
         }
     }
     /// NOTE: this isn't a perfect circle, but it's very efficient.
-    pub fn circle(&self, center: Offset, radius: u32, color: Rgba) {
+    pub fn circle(&self, center: Offset, radius: u32, color: impl Color) {
         let mut e = (1 - radius as i32) / 2;
         let mut x = radius as i32;
         let mut y = 0;
         while x >= y {
             if y != 0 {
                 if x != y {
-                    self.point(center.x - y, center.y + x, color);
-                    self.point(center.x + y, center.y - x, color);
+                    self.point(center.x - y, center.y + x, &color);
+                    self.point(center.x + y, center.y - x, &color);
                 }
-                self.point(center.x - x, center.y + y, color);
-                self.point(center.x + x, center.y - y, color);
+                self.point(center.x - x, center.y + y, &color);
+                self.point(center.x + x, center.y - y, &color);
             }
             if x != y {
-                self.point(center.x + y, center.y + x, color);
-                self.point(center.x - y, center.y - x, color);
+                self.point(center.x + y, center.y + x, &color);
+                self.point(center.x - y, center.y - x, &color);
             }
-            self.point(center.x + x, center.y + y, color);
-            self.point(center.x - x, center.y - y, color);
+            self.point(center.x + x, center.y + y, &color);
+            self.point(center.x - x, center.y - y, &color);
             y += 1;
             if e >= 0 {
                 x -= 1;
@@ -441,7 +312,7 @@ impl Buffer {
             e += y;
         }
     }
-    pub fn circle_aa(&self, center: Offset, radius: u32, color: Rgba) {
+    pub fn circle_aa(&self, center: Offset, radius: u32, color: impl Color) {
         let rmin = (radius * (radius - 2)) as i32;
         let rmax = (radius * (radius + 2)) as i32;
         for y in 0..=radius as i32 {
@@ -455,7 +326,7 @@ impl Buffer {
                     if c > 255 {
                         c = 255
                     };
-                    quadrant!(self.point(center.x, center.y, x, y, color.set_a(c as u8)));
+                    quadrant!(self.point(center.x, center.y, x, y, &color.set_a(c as u8)));
                 } else if sqd < (radius * radius) as i32 && sqd >= rmin {
                     let mut c = sqd - rmin;
                     c *= 256;
@@ -463,16 +334,23 @@ impl Buffer {
                     if c > 255 {
                         c = 255
                     };
-                    quadrant!(self.point(center.x, center.y, x, y, color.set_a(c as u8)));
+                    quadrant!(self.point(center.x, center.y, x, y, &color.set_a(c as u8)));
                 }
             }
         }
     }
     /// Draws a circle arc from angle1 to angle2 in radians, with positive angles measured counterclockwise from positive x axis.
-    pub fn circle_arc(&self, center: Offset, radius: u32, angle1: f32, angle2: f32, color: Rgba) {
+    pub fn circle_arc(
+        &self,
+        center: Offset,
+        radius: u32,
+        angle1: f32,
+        angle2: f32,
+        color: impl Color,
+    ) {
         let (angle1, angle2) = if angle2 < angle1 % TAU32 {
             // Corner case where the arc overlaps angle 0.
-            self.circle_arc(center, radius, angle1, TAU32, color);
+            self.circle_arc(center, radius, angle1, TAU32, color.clone());
             self.circle_arc(center, radius, 0., angle2, color);
             return;
         } else if angle2 - angle1 >= TAU32 {
@@ -490,32 +368,32 @@ impl Buffer {
             if y != 0 {
                 if x != y {
                     if angle1 < 3. * PI_2_32 - angle && 3. * PI_2_32 - angle <= angle2 {
-                        self.point(center.x - y, center.y + x, color);
+                        self.point(center.x - y, center.y + x, &color);
                     }
                     if angle1 < PI_2_32 - angle && PI_2_32 - angle <= angle2 {
-                        self.point(center.x + y, center.y - x, color);
+                        self.point(center.x + y, center.y - x, &color);
                     }
                 }
                 if angle1 < angle + PI32 && angle + PI32 <= angle2 {
-                    self.point(center.x - x, center.y + y, color);
+                    self.point(center.x - x, center.y + y, &color);
                 }
                 if angle1 < angle && angle <= angle2 {
-                    self.point(center.x + x, center.y - y, color);
+                    self.point(center.x + x, center.y - y, &color);
                 }
             }
             if x != y {
                 if angle1 < angle + 3. * PI_2_32 && angle + 3. * PI_2_32 <= angle2 {
-                    self.point(center.x + y, center.y + x, color);
+                    self.point(center.x + y, center.y + x, &color);
                 }
                 if angle1 < angle + PI_2_32 && angle + PI_2_32 <= angle2 {
-                    self.point(center.x - y, center.y - x, color);
+                    self.point(center.x - y, center.y - x, &color);
                 }
             }
             if angle1 < TAU32 - angle && TAU32 - angle <= angle2 {
-                self.point(center.x + x, center.y + y, color);
+                self.point(center.x + x, center.y + y, &color);
             }
             if angle1 < PI32 - angle && PI32 - angle <= angle2 {
-                self.point(center.x - x, center.y - y, color);
+                self.point(center.x - x, center.y - y, &color);
             }
 
             y += 1;
@@ -533,11 +411,11 @@ impl Buffer {
         radius: u32,
         angle1: f32,
         angle2: f32,
-        color: Rgba,
+        color: impl Color,
     ) {
         let (angle1, angle2) = if angle2 < angle1 % TAU32 {
             // Corner case where the arc overlaps angle 0.
-            self.circle_arc_aa(center, radius, angle1, TAU32, color);
+            self.circle_arc_aa(center, radius, angle1, TAU32, color.clone());
             self.circle_arc_aa(center, radius, 0., angle2, color);
             return;
         } else if angle2 - angle1 >= TAU32 {
@@ -569,33 +447,33 @@ impl Buffer {
                 };
                 if x != 0 {
                     if y != 0 && angle1 < PI32 - angle && PI32 - angle <= angle2 {
-                        self.point(center.x - x, center.y - y, color.set_a(c as u8));
+                        self.point(center.x - x, center.y - y, &color.set_a(c as u8));
                     }
                     if angle1 < angle + PI32 && angle + PI32 <= angle2 {
-                        self.point(center.x - x, center.y + y, color.set_a(c as u8));
+                        self.point(center.x - x, center.y + y, &color.set_a(c as u8));
                     }
                 }
                 if y != 0 && angle1 < angle && angle <= angle2 {
-                    self.point(center.x + x, center.y - y, color.set_a(c as u8));
+                    self.point(center.x + x, center.y - y, &color.set_a(c as u8));
                 }
                 if angle1 < TAU32 - angle && TAU32 - angle <= angle2 {
-                    self.point(center.x + x, center.y + y, color.set_a(c as u8));
+                    self.point(center.x + x, center.y + y, &color.set_a(c as u8));
                 }
             }
         }
     }
-    pub fn fill_circle(&self, center: Offset, radius: u32, color: Rgba) {
+    pub fn fill_circle(&self, center: Offset, radius: u32, color: impl Color) {
         for y in 0..=radius as i32 {
             let sqy = y * y;
             for x in 0..=radius as i32 {
                 let sqd = x * x + sqy;
                 if sqd <= (radius * (1 + radius)) as i32 {
-                    quadrant!(self.point(center.x, center.y, x, y, color));
+                    quadrant!(self.point(center.x, center.y, x, y, &color));
                 }
             }
         }
     }
-    pub fn fill_circle_aa(&self, center: Offset, radius: u32, color: Rgba) {
+    pub fn fill_circle_aa(&self, center: Offset, radius: u32, color: impl Color) {
         let rmin = (radius * radius) as i32;
         let rmax = (radius * (radius + 2)) as i32;
         for y in 0..=radius as i32 {
@@ -603,7 +481,7 @@ impl Buffer {
             for x in 0..=radius as i32 {
                 let sqd = x * x + sqy;
                 if sqd < rmin {
-                    quadrant!(self.point(center.x, center.y, x, y, color));
+                    quadrant!(self.point(center.x, center.y, x, y, &color));
                 } else if sqd < rmax {
                     let mut c = rmax - sqd;
                     c *= 256;
@@ -611,15 +489,22 @@ impl Buffer {
                     if c > 255 {
                         c = 255
                     };
-                    quadrant!(self.point(center.x, center.y, x, y, color.set_a(c as u8)));
+                    quadrant!(self.point(center.x, center.y, x, y, &color.set_a(c as u8)));
                 }
             }
         }
     }
-    pub fn circle_pie(&self, center: Offset, radius: u32, angle1: f32, angle2: f32, color: Rgba) {
+    pub fn circle_pie(
+        &self,
+        center: Offset,
+        radius: u32,
+        angle1: f32,
+        angle2: f32,
+        color: impl Color,
+    ) {
         let (angle1, angle2) = if angle2 < angle1 % TAU32 {
             // Corner case where the arc overlaps angle 0.
-            self.circle_pie(center, radius, angle1, TAU32, color);
+            self.circle_pie(center, radius, angle1, TAU32, color.clone());
             self.circle_pie(center, radius, 0., angle2, color);
             return;
         } else if angle2 - angle1 >= TAU32 {
@@ -639,17 +524,17 @@ impl Buffer {
                 }
                 if x != 0 {
                     if y != 0 && angle1 < PI32 - angle && PI32 - angle <= angle2 {
-                        self.point(center.x - x, center.y - y, color);
+                        self.point(center.x - x, center.y - y, &color);
                     }
                     if angle1 < angle + PI32 && angle + PI32 <= angle2 {
-                        self.point(center.x - x, center.y + y, color);
+                        self.point(center.x - x, center.y + y, &color);
                     }
                 }
                 if y != 0 && angle1 < angle && angle <= angle2 {
-                    self.point(center.x + x, center.y - y, color);
+                    self.point(center.x + x, center.y - y, &color);
                 }
                 if angle1 < TAU32 - angle && TAU32 - angle <= angle2 {
-                    self.point(center.x + x, center.y + y, color);
+                    self.point(center.x + x, center.y + y, &color);
                 }
             }
         }
@@ -660,11 +545,11 @@ impl Buffer {
         radius: u32,
         angle1: f32,
         angle2: f32,
-        color: Rgba,
+        color: impl Color,
     ) {
         let (angle1, angle2) = if angle2 < angle1 % TAU32 {
             // Corner case where the arc overlaps angle 0.
-            self.circle_pie_aa(center, radius, angle1, TAU32, color);
+            self.circle_pie_aa(center, radius, angle1, TAU32, color.clone());
             self.circle_pie_aa(center, radius, 0., angle2, color);
             return;
         } else if angle2 - angle1 >= TAU32 {
@@ -721,14 +606,14 @@ impl Buffer {
                         self.point(
                             center.x - x,
                             center.y - y,
-                            color.set_a(angle_grad(PI32 - angle) as u8),
+                            &color.set_a(angle_grad(PI32 - angle) as u8),
                         );
                     }
                     if angle1_min < angle + PI32 && angle + PI32 <= angle2_max {
                         self.point(
                             center.x - x,
                             center.y + y,
-                            color.set_a(angle_grad(PI32 + angle) as u8),
+                            &color.set_a(angle_grad(PI32 + angle) as u8),
                         );
                     }
                 }
@@ -736,33 +621,33 @@ impl Buffer {
                     self.point(
                         center.x + x,
                         center.y + y,
-                        color.set_a(angle_grad(TAU32 - angle) as u8),
+                        &color.set_a(angle_grad(TAU32 - angle) as u8),
                     );
                 }
                 if angle1_min < angle_ && angle_ <= angle2_max {
                     self.point(
                         center.x + x,
                         center.y - y,
-                        color.set_a(angle_grad(angle) as u8),
+                        &color.set_a(angle_grad(angle) as u8),
                     );
                 }
             }
         }
     }
-    pub fn rect(&self, rect: Rect, color: Rgba) {
+    pub fn rect(&self, rect: Rect, color: impl Color) {
         let p1 = rect.offset();
         let p3 = rect.offset_2();
 
         for x in p1.x..=p3.x {
-            self.point(x, p1.y, color);
-            self.point(x, p3.y, color);
+            self.point(x, p1.y, &color);
+            self.point(x, p3.y, &color);
         }
         for y in p1.y + 1..p3.y {
-            self.point(p1.x, y, color);
-            self.point(p3.x, y, color);
+            self.point(p1.x, y, &color);
+            self.point(p3.x, y, &color);
         }
     }
-    pub fn round_rect(&self, rect: Rect, radius: u32, color: Rgba) {
+    pub fn round_rect(&self, rect: Rect, radius: u32, color: impl Color) {
         let p1 = rect.offset();
         let p3 = rect.offset_2();
 
@@ -776,12 +661,12 @@ impl Buffer {
         };
 
         for x in p1_c.x + 1..p3_c.x {
-            self.point(x, p1.y, color);
-            self.point(x, p3.y, color);
+            self.point(x, p1.y, &color);
+            self.point(x, p3.y, &color);
         }
         for y in p1_c.y + 1..p3_c.y {
-            self.point(p1.x, y, color);
-            self.point(p3.x, y, color);
+            self.point(p1.x, y, &color);
+            self.point(p3.x, y, &color);
         }
 
         let mut e = (1 - radius as i32) / 2;
@@ -789,15 +674,15 @@ impl Buffer {
         let mut y = 0;
         while x >= y {
             if x != y {
-                self.point(p3_c.x + y, p3_c.y + x, color);
-                self.point(p1_c.x - y, p3_c.y + x, color);
-                self.point(p3_c.x + y, p1_c.y - x, color);
-                self.point(p1_c.x - y, p1_c.y - x, color);
+                self.point(p3_c.x + y, p3_c.y + x, &color);
+                self.point(p1_c.x - y, p3_c.y + x, &color);
+                self.point(p3_c.x + y, p1_c.y - x, &color);
+                self.point(p1_c.x - y, p1_c.y - x, &color);
             }
-            self.point(p3_c.x + x, p3_c.y + y, color);
-            self.point(p1_c.x - x, p3_c.y + y, color);
-            self.point(p3_c.x + x, p1_c.y - y, color);
-            self.point(p1_c.x - x, p1_c.y - y, color);
+            self.point(p3_c.x + x, p3_c.y + y, &color);
+            self.point(p1_c.x - x, p3_c.y + y, &color);
+            self.point(p3_c.x + x, p1_c.y - y, &color);
+            self.point(p1_c.x - x, p1_c.y - y, &color);
             y += 1;
             if e >= 0 {
                 x -= 1;
@@ -806,7 +691,7 @@ impl Buffer {
             e += y;
         }
     }
-    pub fn round_rect_aa(&self, rect: Rect, radius: u32, color: Rgba) {
+    pub fn round_rect_aa(&self, rect: Rect, radius: u32, color: impl Color) {
         let rmin = (radius * (radius - 2)) as i32;
         let rmax = if radius == 0 {
             1
@@ -827,12 +712,12 @@ impl Buffer {
         };
 
         for x in p1_c.x + 1..p3_c.x {
-            self.point(x, p1.y, color);
-            self.point(x, p3.y, color);
+            self.point(x, p1.y, &color);
+            self.point(x, p3.y, &color);
         }
         for y in p1_c.y + 1..p3_c.y {
-            self.point(p1.x, y, color);
-            self.point(p3.x, y, color);
+            self.point(p1.x, y, &color);
+            self.point(p3.x, y, &color);
         }
 
         for y in 0..=radius as i32 {
@@ -846,10 +731,10 @@ impl Buffer {
                     if c > 255 {
                         c = 255
                     };
-                    self.point(p1_c.x - x, p1_c.y - y, color.set_a(c as u8));
-                    self.point(p3_c.x + x, p1_c.y - y, color.set_a(c as u8));
-                    self.point(p1_c.x - x, p3_c.y + y, color.set_a(c as u8));
-                    self.point(p3_c.x + x, p3_c.y + y, color.set_a(c as u8));
+                    self.point(p1_c.x - x, p1_c.y - y, &color.set_a(c as u8));
+                    self.point(p3_c.x + x, p1_c.y - y, &color.set_a(c as u8));
+                    self.point(p1_c.x - x, p3_c.y + y, &color.set_a(c as u8));
+                    self.point(p3_c.x + x, p3_c.y + y, &color.set_a(c as u8));
                 } else if sqd < (radius * radius) as i32 && sqd >= rmin {
                     let mut c = sqd - rmin;
                     c *= 256;
@@ -857,15 +742,15 @@ impl Buffer {
                     if c > 255 {
                         c = 255
                     };
-                    self.point(p1_c.x - x, p1_c.y - y, color.set_a(c as u8));
-                    self.point(p3_c.x + x, p1_c.y - y, color.set_a(c as u8));
-                    self.point(p1_c.x - x, p3_c.y + y, color.set_a(c as u8));
-                    self.point(p3_c.x + x, p3_c.y + y, color.set_a(c as u8));
+                    self.point(p1_c.x - x, p1_c.y - y, &color.set_a(c as u8));
+                    self.point(p3_c.x + x, p1_c.y - y, &color.set_a(c as u8));
+                    self.point(p1_c.x - x, p3_c.y + y, &color.set_a(c as u8));
+                    self.point(p3_c.x + x, p3_c.y + y, &color.set_a(c as u8));
                 }
             }
         }
     }
-    pub fn fill_round_rect(&self, rect: Rect, radius: u32, color: Rgba) {
+    pub fn fill_round_rect(&self, rect: Rect, radius: u32, color: impl Color) {
         let p1 = rect.offset();
         let p3 = rect.offset_2();
 
@@ -880,15 +765,15 @@ impl Buffer {
 
         for y in p1_c.y + 1..p3_c.y {
             for x in p1.x..=p3.x {
-                self.point(x, y, color);
+                self.point(x, y, &color);
             }
         }
         for x in p1_c.x + 1..p3_c.x {
             for y in p1.y..=p1_c.y {
-                self.point(x, y, color);
+                self.point(x, y, &color);
             }
             for y in p3_c.y..=p3.y {
-                self.point(x, y, color);
+                self.point(x, y, &color);
             }
         }
 
@@ -897,15 +782,15 @@ impl Buffer {
             for x in 0..=radius as i32 {
                 let sqd = x * x + sqy;
                 if sqd <= (radius * (2 + radius)) as i32 {
-                    self.point(p1_c.x - x, p1_c.y - y, color);
-                    self.point(p3_c.x + x, p1_c.y - y, color);
-                    self.point(p1_c.x - x, p3_c.y + y, color);
-                    self.point(p3_c.x + x, p3_c.y + y, color);
+                    self.point(p1_c.x - x, p1_c.y - y, &color);
+                    self.point(p3_c.x + x, p1_c.y - y, &color);
+                    self.point(p1_c.x - x, p3_c.y + y, &color);
+                    self.point(p3_c.x + x, p3_c.y + y, &color);
                 }
             }
         }
     }
-    pub fn fill_round_rect_aa(&self, rect: Rect, radius: u32, color: Rgba) {
+    pub fn fill_round_rect_aa(&self, rect: Rect, radius: u32, color: impl Color) {
         let rmin = if radius == 0 { 1 } else { radius * radius } as i32;
         let rmax = (radius * (radius + 2)) as i32;
 
@@ -923,15 +808,15 @@ impl Buffer {
 
         for y in p1_c.y + 1..p3_c.y {
             for x in p1.x..=p3.x {
-                self.point(x, y, color);
+                self.point(x, y, &color);
             }
         }
         for x in p1_c.x + 1..p3_c.x {
             for y in p1.y..=p1_c.y {
-                self.point(x, y, color);
+                self.point(x, y, &color);
             }
             for y in p3_c.y..=p3.y {
-                self.point(x, y, color);
+                self.point(x, y, &color);
             }
         }
         for y in 0..=radius as i32 {
@@ -939,10 +824,10 @@ impl Buffer {
             for x in 0..=radius as i32 {
                 let sqd = x * x + sqy;
                 if sqd < rmin {
-                    self.point(p1_c.x - x, p1_c.y - y, color);
-                    self.point(p3_c.x + x, p1_c.y - y, color);
-                    self.point(p1_c.x - x, p3_c.y + y, color);
-                    self.point(p3_c.x + x, p3_c.y + y, color);
+                    self.point(p1_c.x - x, p1_c.y - y, &color);
+                    self.point(p3_c.x + x, p1_c.y - y, &color);
+                    self.point(p1_c.x - x, p3_c.y + y, &color);
+                    self.point(p3_c.x + x, p3_c.y + y, &color);
                 } else if sqd < rmax {
                     let mut c = rmax - sqd;
                     c *= 256;
@@ -950,10 +835,10 @@ impl Buffer {
                     if c > 255 {
                         c = 255
                     };
-                    self.point(p1_c.x - x, p1_c.y - y, color.set_a(c as u8));
-                    self.point(p3_c.x + x, p1_c.y - y, color.set_a(c as u8));
-                    self.point(p1_c.x - x, p3_c.y + y, color.set_a(c as u8));
-                    self.point(p3_c.x + x, p3_c.y + y, color.set_a(c as u8));
+                    self.point(p1_c.x - x, p1_c.y - y, &color.set_a(c as u8));
+                    self.point(p3_c.x + x, p1_c.y - y, &color.set_a(c as u8));
+                    self.point(p1_c.x - x, p3_c.y + y, &color.set_a(c as u8));
+                    self.point(p3_c.x + x, p3_c.y + y, &color.set_a(c as u8));
                 }
             }
         }
