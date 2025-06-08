@@ -110,7 +110,7 @@ impl Rgba {
             (hex_decode(r1, r1), hex_decode(r2, r2), hex_decode(g1, g1))
         } else if let (Some(g2), Some(b1), Some(b2)) = (g2, b1, b2) {
             (hex_decode(r1, r2), hex_decode(g1, g2), hex_decode(b1, b2))
-            } else {
+        } else {
             return None;
         };
 
@@ -118,9 +118,9 @@ impl Rgba {
             hex_decode(a1, a2)
         } else if a1.is_some() {
             return None;
-            } else {
-                Some(255)
-            };
+        } else {
+            Some(255)
+        };
 
         match (r, g, b, a) {
             (Some(r), Some(g), Some(b), Some(a)) => Some(Self { r, g, b, a }),
@@ -171,5 +171,131 @@ impl Color for Rgba {
     }
     fn set_a(&self, a: u8) -> Self {
         Rgba::set_a(*self, a)
+    }
+}
+
+#[derive(Clone)]
+pub struct GradientBase {
+    steps: Vec<(u16, Rgba)>,
+    repeating: bool,
+}
+
+impl GradientBase {
+    /// Color values are sorted, and ads both end values if missing.
+    fn new(colors: &[(u16, Rgba)], repeating: bool) -> Self {
+        let mut steps = colors.to_vec();
+        if steps.len() == 1 {
+            return Self {
+                repeating,
+                steps: vec![(0, steps[0].1), (u16::MAX, steps[0].1)],
+            };
+        } else if steps.is_empty() {
+            return Self {
+                repeating,
+                steps: vec![(0, Rgba::BLACK), (u16::MAX, Rgba::BLACK)],
+            };
+        }
+        steps.sort_by_key(|k| k.0);
+
+        let max = steps.last().unwrap().0;
+        if max < u16::MAX {
+            steps.push((u16::MAX, steps.last().unwrap().1))
+        }
+
+        if steps[0].0 != 0 {
+            steps.insert(0, (0, steps[0].1));
+        }
+        Self { steps, repeating }
+    }
+
+    /// Get a value from the gradient
+    fn get(&self, v: f32) -> Rgba {
+        if !v.is_finite() {
+            return Rgba::BLACK;
+        }
+
+        let v_c = if self.repeating {
+            v.rem_euclid(1.0)
+        } else {
+            v.clamp(0., 1.)
+        } * u16::MAX as f32;
+
+        let v_i = v_c as u16;
+
+        match self.steps.binary_search_by_key(&v_i, |k| k.0) {
+            Ok(mut i) => {
+                while i < self.steps.len() && self.steps[i].0 == v_i {
+                    i += 1
+                }
+                i -= 1;
+                self.steps[i].1
+            }
+            Err(i) => {
+                let over = self.steps[i];
+                let under = self.steps[i - 1];
+                let lerp_t =
+                    ((v_c - under.0 as f32) / (over.0 as f32 - under.0 as f32) * 255.0) as u8;
+                under.1.lerp(over.1, lerp_t)
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct DirectionalGradient {
+    base: GradientBase,
+    angle: f32,
+    scale: f32,
+    offset: Offset,
+}
+
+impl DirectionalGradient {
+    /// Angle in radians, Color values are sorted and clamped to 0-1. Scale defines total width in pixels, and offset defines starting point.
+    pub fn new(
+        colors: &[(f32, Rgba)],
+        repeating: bool,
+        angle: f32,
+        scale: f32,
+        offset: Offset,
+    ) -> Self {
+        let colors = colors
+            .iter()
+            .filter_map(|(v, c)| {
+                if !v.is_finite() || *v < 0.0 || *v > 1.0 {
+                    None
+                } else {
+                    Some(((v * u16::MAX as f32) as u16, *c))
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let base = GradientBase::new(&colors, repeating);
+        Self {
+            base,
+            angle: angle.rem_euclid(std::f32::consts::TAU),
+            scale,
+            offset,
+        }
+    }
+}
+
+impl Color for DirectionalGradient {
+    fn get(&self, pos: Offset) -> Rgba {
+        let (sin, cos) = self.angle.sin_cos();
+        let real_x = (pos.x - self.offset.x) as f32 * cos - (pos.y - self.offset.y) as f32 * sin;
+        let value = real_x / self.scale;
+        self.base.get(value)
+    }
+    fn set_a(&self, a: u8) -> Self {
+        let steps = self
+            .base
+            .steps
+            .iter()
+            .map(|c| (c.0, c.1.set_a(a)))
+            .collect();
+        DirectionalGradient {
+            base: GradientBase { steps, ..self.base },
+            ..self.clone()
+        }
     }
 }
