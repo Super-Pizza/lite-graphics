@@ -14,6 +14,14 @@ pub struct Rect {
 }
 
 impl Rect {
+    pub fn new(offs: Offset, size: Size) -> Self {
+        Rect {
+            x: offs.x,
+            y: offs.y,
+            w: size.w,
+            h: size.h,
+        }
+    }
     #[inline]
     pub fn size(&self) -> Size {
         Size {
@@ -102,12 +110,7 @@ impl From<Size> for Rect {
 impl From<(Offset, Size)> for Rect {
     #[inline]
     fn from((offs, size): (Offset, Size)) -> Self {
-        Rect {
-            x: offs.x,
-            y: offs.y,
-            w: size.w,
-            h: size.h,
-        }
+        Self::new(offs, size)
     }
 }
 
