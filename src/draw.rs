@@ -23,6 +23,7 @@ pub struct Buffer {
     pub(crate) data: Rc<RefCell<Vec<u8>>>,
     pub(crate) width: usize,
     pub(crate) height: usize,
+    pub(crate) max_size: Size,
     pub(crate) offs: Offset,
 }
 
@@ -33,15 +34,24 @@ impl Buffer {
             data: Rc::new(RefCell::new(vec![255; width * height * 3])),
             width,
             height,
+            max_size: Size::new(width as _, height as _),
             offs: Default::default(),
         }
     }
-    pub fn with_offset(&self, offset: Offset) -> Self {
+    pub fn subregion(&self, rect: Rect) -> Self {
+        let rect = rect.clamp(
+            Size {
+                w: self.width as _,
+                h: self.height as _,
+            }
+            .into(),
+        );
         Self {
             data: self.data.clone(),
             width: self.width,
             height: self.height,
-            offs: offset + self.offs,
+            max_size: rect.size(),
+            offs: rect.offset() + self.offs,
         }
     }
     pub fn data(&self) -> std::cell::Ref<'_, Vec<u8>> {
@@ -55,13 +65,17 @@ impl Buffer {
     }
     /// Draws a point of the specified color
     pub fn point(&self, x: i32, y: i32, color: &impl Color) {
-        let x = x + self.offs.x;
-        let y = y + self.offs.y;
-        if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
+        let x_o = x + self.offs.x;
+        let y_o = y + self.offs.y;
+        if x < self.offs.x
+            || y < self.offs.y
+            || x as u32 >= self.max_size.w
+            || y as u32 >= self.max_size.h
+        {
             return;
         }
-        let [r, g, b, a] = color.get(Offset { x, y }).into();
-        let (x, y) = (x as usize, y as usize);
+        let [r, g, b, a] = color.get(Offset { x: x_o, y: y_o }).into();
+        let (x, y) = (x_o as usize, y_o as usize);
         let pixel_range =
             &mut self.data.borrow_mut()[(x + y * self.width) * 3..(x + y * self.width) * 3 + 3];
         if a == 255 {
@@ -78,7 +92,7 @@ impl Buffer {
     /// Fills a rectangle, clipped to the buffer's size
     pub fn fill_rect(&self, rect: Rect, color: impl Color) {
         let rect = rect + self.offs;
-        let rect = rect.clamp(Size::from((self.width as u32, self.height as u32)).into());
+        let rect = rect.clamp((self.offs, self.max_size).into());
         let p1 = rect.offset();
         let p2 = rect.offset_2();
 
@@ -222,8 +236,7 @@ impl Buffer {
             w: length as _,
             h: 1,
         };
-        let rect = Rect::from((p1 + self.offs, size))
-            .clamp(Size::from((self.width as u32, self.height as u32)).into());
+        let rect = Rect::new(p1 + self.offs, size).clamp((self.offs, self.max_size).into());
 
         let (x1, y1) = (rect.x as usize, rect.y as usize);
         let x2 = rect.offset_2().x as usize;
@@ -257,8 +270,8 @@ impl Buffer {
             w: 1,
             h: length as _,
         };
-        let rect = Rect::from((p1 + self.offs, size))
-            .clamp(Size::from((self.width as u32, self.height as u32)).into());
+        let rect = Rect::new(p1 + self.offs, size)
+            .clamp(Size::new(self.width as u32, self.height as u32).into());
 
         let (x1, y1) = (rect.x as usize, rect.y as usize);
         let y2 = rect.offset_2().y as usize;
