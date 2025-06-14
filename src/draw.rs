@@ -39,13 +39,7 @@ impl Buffer {
         }
     }
     pub fn subregion(&self, rect: Rect) -> Self {
-        let rect = rect.clamp(
-            Size {
-                w: self.width as _,
-                h: self.height as _,
-            }
-            .into(),
-        );
+        let rect = rect.clamp(self.max_size.into());
         Self {
             data: self.data.clone(),
             width: self.width,
@@ -91,36 +85,14 @@ impl Buffer {
     }
     /// Fills a rectangle, clipped to the buffer's size
     pub fn fill_rect(&self, rect: Rect, color: impl Color) {
-        let rect = rect + self.offs;
-        let rect = rect.clamp((self.offs, self.max_size).into());
+        let rect = rect.clamp(self.max_size.into());
         let p1 = rect.offset();
         let p2 = rect.offset_2();
 
-        let (x1, y1, x2, y2) = (p1.x as usize, p1.y as usize, p2.x as usize, p2.y as usize);
-        for row in y1..y2 {
-            let pixel_range = &mut self.data.borrow_mut()
-                [(x1 + row * self.width) * 3..(x2 + row * self.width) * 3];
-            for i in x1..x2 {
-                let [r, g, b, a] = color
-                    .get(Offset {
-                        x: i as i32,
-                        y: row as i32,
-                    })
-                    .into();
-                let r_i = (i - x1) * 3;
-                let g_i = r_i + 1;
-                let b_i = r_i + 2;
-                if a == 255 {
-                    pixel_range[r_i..r_i + 3].copy_from_slice(&[r, g, b]);
-                } else {
-                    let (r, g, b, a) = (r as i32, g as i32, b as i32, a as i32);
-                    pixel_range[r_i] =
-                        ((r - pixel_range[r_i] as i32) * a / 255 + pixel_range[r_i] as i32) as u8;
-                    pixel_range[g_i] =
-                        ((g - pixel_range[g_i] as i32) * a / 255 + pixel_range[g_i] as i32) as u8;
-                    pixel_range[b_i] =
-                        ((b - pixel_range[b_i] as i32) * a / 255 + pixel_range[b_i] as i32) as u8;
-                }
+        let (x1, y1, x2, y2) = (p1.x, p1.y, p2.x, p2.y);
+        for y in y1..y2 {
+            for x in x1..x2 {
+                self.point(x, y, &color);
             }
         }
     }
@@ -236,33 +208,12 @@ impl Buffer {
             w: length as _,
             h: 1,
         };
-        let rect = Rect::new(p1 + self.offs, size).clamp((self.offs, self.max_size).into());
+        let rect = Rect::new(p1, size).clamp(self.max_size.into());
 
-        let (x1, y1) = (rect.x as usize, rect.y as usize);
-        let x2 = rect.offset_2().x as usize;
-        let pixel_range =
-            &mut self.data.borrow_mut()[(x1 + y1 * self.width) * 3..(x2 + y1 * self.width) * 3];
-        for i in x1..x2 {
-            let [r, g, b, a] = color
-                .get(Offset {
-                    x: i as i32,
-                    y: y1 as i32,
-                })
-                .into();
-            let r_i = (i - x1) * 3;
-            let g_i = r_i + 1;
-            let b_i = r_i + 2;
-            if a == 255 {
-                pixel_range[r_i..r_i + 3].copy_from_slice(&[r, g, b]);
-            } else {
-                let (r, g, b, a) = (r as i32, g as i32, b as i32, a as i32);
-                pixel_range[r_i] =
-                    ((r - pixel_range[r_i] as i32) * a / 255 + pixel_range[r_i] as i32) as u8;
-                pixel_range[g_i] =
-                    ((g - pixel_range[g_i] as i32) * a / 255 + pixel_range[g_i] as i32) as u8;
-                pixel_range[b_i] =
-                    ((b - pixel_range[b_i] as i32) * a / 255 + pixel_range[b_i] as i32) as u8;
-            }
+        let (x1, y) = (rect.x, rect.y);
+        let x2 = rect.offset_2().x;
+        for x in x1..x2 {
+            self.point(x, y, &color);
         }
     }
     pub fn line_v(&self, p1: Offset, length: i32, color: impl Color) {
@@ -270,31 +221,12 @@ impl Buffer {
             w: 1,
             h: length as _,
         };
-        let rect = Rect::new(p1 + self.offs, size)
-            .clamp(Size::new(self.width as u32, self.height as u32).into());
+        let rect = Rect::new(p1, size).clamp(self.max_size.into());
 
-        let (x1, y1) = (rect.x as usize, rect.y as usize);
-        let y2 = rect.offset_2().y as usize;
-        for row in y1..y2 {
-            let [r, g, b, a] = color
-                .get(Offset {
-                    x: x1 as i32,
-                    y: row as i32,
-                })
-                .into();
-            let pixel_range = &mut self.data.borrow_mut()
-                [(x1 + row * self.width) * 3..(x1 + 1 + row * self.width) * 3];
-            if a == 255 {
-                pixel_range.copy_from_slice(&[r, g, b]);
-            } else {
-                let (r, g, b, a) = (r as i32, g as i32, b as i32, a as i32);
-                pixel_range[0] =
-                    ((r - pixel_range[0] as i32) * a / 255 + pixel_range[0] as i32) as u8;
-                pixel_range[1] =
-                    ((g - pixel_range[1] as i32) * a / 255 + pixel_range[1] as i32) as u8;
-                pixel_range[2] =
-                    ((b - pixel_range[2] as i32) * a / 255 + pixel_range[2] as i32) as u8;
-            }
+        let (x, y1) = (rect.x, rect.y);
+        let y2 = rect.offset_2().y;
+        for y in y1..y2 {
+            self.point(x, y, &color);
         }
     }
     /// NOTE: this isn't a perfect circle, but it's very efficient.
