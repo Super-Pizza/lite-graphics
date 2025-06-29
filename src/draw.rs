@@ -61,11 +61,7 @@ impl Buffer {
     pub fn point(&self, x: i32, y: i32, color: &impl Color) {
         let x_o = x + self.offs.x;
         let y_o = y + self.offs.y;
-        if x < self.offs.x
-            || y < self.offs.y
-            || x as u32 > self.max_size.w
-            || y as u32 > self.max_size.h
-        {
+        if x < 0 || y < 0 || x as u32 > self.max_size.w || y as u32 > self.max_size.h {
             return;
         }
         let [r, g, b, a] = color.get(Offset { x: x_o, y: y_o }).into();
