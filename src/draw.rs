@@ -63,8 +63,8 @@ impl Buffer {
         let y_o = y + self.offs.y;
         if x < self.offs.x
             || y < self.offs.y
-            || x as u32 >= self.max_size.w
-            || y as u32 >= self.max_size.h
+            || x as u32 > self.max_size.w
+            || y as u32 > self.max_size.h
         {
             return;
         }
