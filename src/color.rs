@@ -136,6 +136,8 @@ impl Rgba {
         }
     }
     /// Linear intERPolation.
+    ///
+    /// `r`,`g`,`b`, `a`: `(other - self) * t / 255 + self`
     pub const fn lerp(self, other: Self, t: u8) -> Self {
         Self {
             r: ((other.r as i32 - self.r as i32) * t as i32 / 255 + self.r as i32) as u8,
@@ -162,6 +164,11 @@ impl Rgba {
             .isqrt() as u8,
             a: ((other.a as i32 - self.a as i32) * t as i32 / 255 + self.a as i32) as u8,
         }
+    }
+
+    /// Get intensity (avg. of R,G,B)
+    pub const fn intensity(&self) -> u8 {
+        ((self.r as i32 + self.g as i32 + self.b as i32) / 3) as u8
     }
 }
 
