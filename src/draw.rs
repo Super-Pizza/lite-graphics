@@ -39,7 +39,7 @@ impl Buffer {
         }
     }
     pub fn subregion(&self, rect: Rect) -> Self {
-        let rect = rect.clamp(self.max_size.into());
+        let rect = rect.clamp(Rect::new(self.offs, self.max_size));
         Self {
             data: self.data.clone(),
             width: self.width,
