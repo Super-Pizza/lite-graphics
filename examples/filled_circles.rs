@@ -1,4 +1,4 @@
-use lite_graphics::{color::Rgba, draw::Buffer, Offset};
+use lite_graphics::{color::Rgba, Buffer, Drawable, Offset};
 
 fn main() {
     let buf = Buffer::new(400, 300);

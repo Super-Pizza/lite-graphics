@@ -19,69 +19,16 @@ macro_rules! quadrant {
         $($fn).+($cx + $x, $cy + $y, $color);
     };
 }
-pub struct Buffer {
-    pub(crate) data: Rc<RefCell<Vec<u8>>>,
-    pub(crate) width: usize,
-    pub(crate) height: usize,
-    pub(crate) max_size: Size,
-    pub(crate) offs: Offset,
-}
 
-impl Buffer {
-    /// Creates a buffer, filled with black
-    pub fn new(width: usize, height: usize) -> Self {
-        Self {
-            data: Rc::new(RefCell::new(vec![255; width * height * 3])),
-            width,
-            height,
-            max_size: Size::new(width as _, height as _),
-            offs: Default::default(),
-        }
-    }
-    pub fn subregion(&self, rect: Rect) -> Self {
-        let rect = rect.clamp(Rect::new(self.offs, self.max_size));
-        Self {
-            data: self.data.clone(),
-            width: self.width,
-            height: self.height,
-            max_size: rect.size(),
-            offs: rect.offset() + self.offs,
-        }
-    }
-    pub fn data(&self) -> std::cell::Ref<'_, Vec<u8>> {
-        self.data.borrow()
-    }
-    pub fn size(&self) -> Size {
-        Size {
-            w: self.width as u32,
-            h: self.height as u32,
-        }
-    }
-    /// Draws a point of the specified color
-    pub fn point(&self, x: i32, y: i32, color: &impl Color) {
-        let x_o = x + self.offs.x;
-        let y_o = y + self.offs.y;
-        if x < 0 || y < 0 || x as u32 > self.max_size.w || y as u32 > self.max_size.h {
-            return;
-        }
-        let [r, g, b, a] = color.get(Offset { x: x_o, y: y_o }).into();
-        let (x, y) = (x_o as usize, y_o as usize);
-        let pixel_range =
-            &mut self.data.borrow_mut()[(x + y * self.width) * 3..(x + y * self.width) * 3 + 3];
-        if a == 255 {
-            // Quick optimization
-            pixel_range.copy_from_slice(&[r, g, b]);
-        } else {
-            // Alpha blending. SRC * A / 255 + DST * (255-A) / 255 = (SRC - DST) * A / 255 + DST
-            let (r, g, b, a) = (r as i32, g as i32, b as i32, a as i32);
-            pixel_range[0] = ((r - pixel_range[0] as i32) * a / 255 + pixel_range[0] as i32) as u8;
-            pixel_range[1] = ((g - pixel_range[1] as i32) * a / 255 + pixel_range[1] as i32) as u8;
-            pixel_range[2] = ((b - pixel_range[2] as i32) * a / 255 + pixel_range[2] as i32) as u8;
-        }
-    }
+pub trait Drawable {
+    fn data(&self) -> std::cell::Ref<'_, Vec<u8>>;
+    fn size(&self) -> Size;
+    fn subregion(&self, rect: Rect) -> Self;
+
+    fn point(&self, x: i32, y: i32, color: &impl Color);
+
     /// Fills a rectangle, clipped to the buffer's size
-    pub fn fill_rect(&self, rect: Rect, color: impl Color) {
-        let rect = rect.clamp(self.max_size.into());
+    fn fill_rect(&self, rect: Rect, color: impl Color) {
         let p1 = rect.offset();
         let p2 = rect.offset_2();
 
@@ -92,7 +39,7 @@ impl Buffer {
             }
         }
     }
-    pub fn line(&self, mut p1: Offset, mut p2: Offset, color: impl Color) {
+    fn line(&self, mut p1: Offset, mut p2: Offset, color: impl Color) {
         let steep = if p1.x.abs_diff(p2.x) < p1.y.abs_diff(p2.y) {
             mem::swap(&mut p1.x, &mut p1.y);
             mem::swap(&mut p2.x, &mut p2.y);
@@ -128,7 +75,7 @@ impl Buffer {
             }
         }
     }
-    pub fn line_aa(&self, mut p1: Offset, mut p2: Offset, color: impl Color) {
+    fn line_aa(&self, mut p1: Offset, mut p2: Offset, color: impl Color) {
         let steep = if p1.x.abs_diff(p2.x) < p1.y.abs_diff(p2.y) {
             mem::swap(&mut p1.x, &mut p1.y);
             mem::swap(&mut p2.x, &mut p2.y);
@@ -199,12 +146,12 @@ impl Buffer {
             }
         }
     }
-    pub fn line_h(&self, p1: Offset, length: i32, color: impl Color) {
+    fn line_h(&self, p1: Offset, length: i32, color: impl Color) {
         let size = Size {
             w: length as _,
             h: 1,
         };
-        let rect = Rect::new(p1, size).clamp(self.max_size.into());
+        let rect = Rect::new(p1, size);
 
         let (x1, y) = (rect.x, rect.y);
         let x2 = rect.offset_2().x;
@@ -212,12 +159,12 @@ impl Buffer {
             self.point(x, y, &color);
         }
     }
-    pub fn line_v(&self, p1: Offset, length: i32, color: impl Color) {
+    fn line_v(&self, p1: Offset, length: i32, color: impl Color) {
         let size = Size {
             w: 1,
             h: length as _,
         };
-        let rect = Rect::new(p1, size).clamp(self.max_size.into());
+        let rect = Rect::new(p1, size);
 
         let (x, y1) = (rect.x, rect.y);
         let y2 = rect.offset_2().y;
@@ -226,7 +173,7 @@ impl Buffer {
         }
     }
     /// NOTE: this isn't a perfect circle, but it's very efficient.
-    pub fn circle(&self, center: Offset, radius: u32, color: impl Color) {
+    fn circle(&self, center: Offset, radius: u32, color: impl Color) {
         let mut e = (1 - radius as i32) / 2;
         let mut x = radius as i32;
         let mut y = 0;
@@ -253,7 +200,7 @@ impl Buffer {
             e += y;
         }
     }
-    pub fn circle_aa(&self, center: Offset, radius: u32, color: impl Color) {
+    fn circle_aa(&self, center: Offset, radius: u32, color: impl Color) {
         let rmin = (radius * (radius - 2)) as i32;
         let rmax = (radius * (radius + 2)) as i32;
         for y in 0..=radius as i32 {
@@ -281,14 +228,7 @@ impl Buffer {
         }
     }
     /// Draws a circle arc from angle1 to angle2 in radians, with positive angles measured counterclockwise from positive x axis.
-    pub fn circle_arc(
-        &self,
-        center: Offset,
-        radius: u32,
-        angle1: f32,
-        angle2: f32,
-        color: impl Color,
-    ) {
+    fn circle_arc(&self, center: Offset, radius: u32, angle1: f32, angle2: f32, color: impl Color) {
         let (angle1, angle2) = if angle2 < angle1 % TAU32 {
             // Corner case where the arc overlaps angle 0.
             self.circle_arc(center, radius, angle1, TAU32, color.clone());
@@ -346,7 +286,7 @@ impl Buffer {
         }
     }
     /// Draws a circle arc from angle1 to angle2 in radians, with positive angles measured counterclockwise from positive x axis.
-    pub fn circle_arc_aa(
+    fn circle_arc_aa(
         &self,
         center: Offset,
         radius: u32,
@@ -403,7 +343,7 @@ impl Buffer {
             }
         }
     }
-    pub fn fill_circle(&self, center: Offset, radius: u32, color: impl Color) {
+    fn fill_circle(&self, center: Offset, radius: u32, color: impl Color) {
         for y in 0..=radius as i32 {
             let sqy = y * y;
             for x in 0..=radius as i32 {
@@ -414,7 +354,7 @@ impl Buffer {
             }
         }
     }
-    pub fn fill_circle_aa(&self, center: Offset, radius: u32, color: impl Color) {
+    fn fill_circle_aa(&self, center: Offset, radius: u32, color: impl Color) {
         let rmin = (radius * radius) as i32;
         let rmax = (radius * (radius + 2)) as i32;
         for y in 0..=radius as i32 {
@@ -435,14 +375,7 @@ impl Buffer {
             }
         }
     }
-    pub fn circle_pie(
-        &self,
-        center: Offset,
-        radius: u32,
-        angle1: f32,
-        angle2: f32,
-        color: impl Color,
-    ) {
+    fn circle_pie(&self, center: Offset, radius: u32, angle1: f32, angle2: f32, color: impl Color) {
         let (angle1, angle2) = if angle2 < angle1 % TAU32 {
             // Corner case where the arc overlaps angle 0.
             self.circle_pie(center, radius, angle1, TAU32, color.clone());
@@ -480,7 +413,7 @@ impl Buffer {
             }
         }
     }
-    pub fn circle_pie_aa(
+    fn circle_pie_aa(
         &self,
         center: Offset,
         radius: u32,
@@ -575,7 +508,7 @@ impl Buffer {
             }
         }
     }
-    pub fn rect(&self, rect: Rect, color: impl Color) {
+    fn rect(&self, rect: Rect, color: impl Color) {
         let p1 = rect.offset();
         let p3 = rect.offset_2();
 
@@ -588,7 +521,7 @@ impl Buffer {
             self.point(p3.x, y, &color);
         }
     }
-    pub fn round_rect(&self, rect: Rect, radius: u32, color: impl Color) {
+    fn round_rect(&self, rect: Rect, radius: u32, color: impl Color) {
         let p1 = rect.offset();
         let p3 = rect.offset_2();
 
@@ -632,7 +565,7 @@ impl Buffer {
             e += y;
         }
     }
-    pub fn round_rect_aa(&self, rect: Rect, radius: u32, color: impl Color) {
+    fn round_rect_aa(&self, rect: Rect, radius: u32, color: impl Color) {
         let rmin = (radius * (radius - 2)) as i32;
         let rmax = if radius == 0 {
             1
@@ -691,7 +624,7 @@ impl Buffer {
             }
         }
     }
-    pub fn fill_round_rect(&self, rect: Rect, radius: u32, color: impl Color) {
+    fn fill_round_rect(&self, rect: Rect, radius: u32, color: impl Color) {
         let p1 = rect.offset();
         let p3 = rect.offset_2();
 
@@ -731,7 +664,7 @@ impl Buffer {
             }
         }
     }
-    pub fn fill_round_rect_aa(&self, rect: Rect, radius: u32, color: impl Color) {
+    fn fill_round_rect_aa(&self, rect: Rect, radius: u32, color: impl Color) {
         let rmin = if radius == 0 { 1 } else { radius * radius } as i32;
         let rmax = (radius * (radius + 2)) as i32;
 
@@ -782,6 +715,182 @@ impl Buffer {
                     self.point(p3_c.x + x, p3_c.y + y, &color.set_a(c as u8));
                 }
             }
+        }
+    }
+}
+
+pub struct Buffer {
+    pub(crate) data: Rc<RefCell<Vec<u8>>>,
+    pub(crate) width: usize,
+    pub(crate) height: usize,
+    pub(crate) subregion: Rect,
+}
+
+impl Buffer {
+    /// Creates a buffer, filled with black
+    pub fn new(width: usize, height: usize) -> Self {
+        Self {
+            data: Rc::new(RefCell::new(vec![255; width * height * 3])),
+            width,
+            height,
+            subregion: Size::new(width as _, height as _).into(),
+        }
+    }
+}
+impl Drawable for Buffer {
+    fn data(&self) -> std::cell::Ref<'_, Vec<u8>> {
+        self.data.borrow()
+    }
+    fn size(&self) -> Size {
+        Size {
+            w: self.width as u32,
+            h: self.height as u32,
+        }
+    }
+    fn subregion(&self, rect: Rect) -> Self {
+        let rect = rect.clamp(self.subregion);
+        Self {
+            data: self.data.clone(),
+            width: self.width,
+            height: self.height,
+            subregion: rect + self.subregion.offset(),
+        }
+    }
+    fn point(&self, x: i32, y: i32, color: &impl Color) {
+        let x_o = x + self.subregion.x;
+        let y_o = y + self.subregion.y;
+        if x < 0 || y < 0 || x as u32 > self.subregion.w || y as u32 > self.subregion.h {
+            return;
+        }
+        let [r, g, b, a] = color.get(Offset { x: x_o, y: y_o }).into();
+        let (x, y) = (x_o as usize, y_o as usize);
+        let pixel_range =
+            &mut self.data.borrow_mut()[(x + y * self.width) * 3..(x + y * self.width) * 3 + 3];
+        if a == 255 {
+            // Quick optimization
+            pixel_range.copy_from_slice(&[r, g, b]);
+        } else {
+            // Alpha blending. SRC * A / 255 + DST * (255-A) / 255 = (SRC - DST) * A / 255 + DST
+            let (r, g, b, a) = (r as i32, g as i32, b as i32, a as i32);
+            pixel_range[0] = ((r - pixel_range[0] as i32) * a / 255 + pixel_range[0] as i32) as u8;
+            pixel_range[1] = ((g - pixel_range[1] as i32) * a / 255 + pixel_range[1] as i32) as u8;
+            pixel_range[2] = ((b - pixel_range[2] as i32) * a / 255 + pixel_range[2] as i32) as u8;
+        }
+    }
+}
+
+pub struct Overlay {
+    // RGB
+    base: Rc<RefCell<Vec<u8>>>,
+    base_width: usize,
+    base_height: usize,
+    // Premultiplied RGB + Alpha
+    overlay_data: Rc<RefCell<Vec<u8>>>,
+    dst_rect: Rect,
+    subregion: Rect,
+    // RGB result
+    dst_buffer: Rc<RefCell<Vec<u8>>>,
+}
+
+impl Overlay {
+    pub fn new(base: Buffer, rect: Rect) -> Self {
+        let dst_buffer = Rc::new(RefCell::new(base.data.borrow().clone()));
+        let overlay = Rc::new(RefCell::new(vec![0; rect.w as usize * rect.h as usize * 4]));
+        Self {
+            base: base.data,
+            base_width: base.width,
+            base_height: base.height,
+            overlay_data: overlay,
+            dst_rect: rect,
+            subregion: rect.size().into(),
+            dst_buffer,
+        }
+    }
+    pub fn offset(&mut self, offset: Offset) {
+        self.dst_rect.x = offset.x;
+        self.dst_rect.y = offset.y;
+    }
+}
+
+impl Drawable for Overlay {
+    fn data(&self) -> std::cell::Ref<'_, Vec<u8>> {
+        let base = self.base.borrow();
+        let overlay = self.overlay_data.borrow();
+        let mut result = self.dst_buffer.borrow_mut();
+        let src_offs = -self.dst_rect.offset().min(Offset::default());
+        let dst_rect = self
+            .dst_rect
+            .clamp(Size::new(self.base_width as _, self.base_height as _).into());
+        for i in 0..self.base_width {
+            for j in 0..self.base_height {
+                let offs = 3 * (i + j * self.base_width);
+                if i < dst_rect.x as _
+                    || i >= dst_rect.offset_2().x as _
+                    || j < dst_rect.y as _
+                    || j >= dst_rect.offset_2().y as _
+                {
+                    result[offs..offs + 3].copy_from_slice(&base[offs..offs + 3]);
+                }
+
+                let overlay_offs = src_offs + (Offset::new(i as _, j as _) - dst_rect.offset());
+                let overlay_array_offs =
+                    4 * (overlay_offs.x + overlay_offs.y * dst_rect.w as i32) as usize;
+
+                let [r, g, b, a] = overlay[overlay_array_offs..overlay_array_offs + 4] else {
+                    unreachable!()
+                };
+                if a == 255 {
+                    // Quick optimization
+                    result[offs..offs + 3].copy_from_slice(&[r, g, b]);
+                    continue;
+                }
+                let (r, g, b, a) = (r as i32, g as i32, b as i32, a as i32);
+                result[offs] = ((255 - a) * base[offs] as i32 / 255 + r) as u8;
+                result[offs + 1] = ((255 - a) * base[offs + 1] as i32 / 255 + g) as u8;
+                result[offs + 2] = ((255 - a) * base[offs + 2] as i32 / 255 + b) as u8;
+            }
+        }
+        mem::drop(result);
+        self.dst_buffer.borrow()
+    }
+    fn size(&self) -> Size {
+        Size {
+            w: self.base_width as u32,
+            h: self.base_height as u32,
+        }
+    }
+    fn subregion(&self, rect: Rect) -> Self {
+        let rect = rect.clamp(self.subregion);
+        Self {
+            base: self.base.clone(),
+            base_width: self.base_width,
+            base_height: self.base_height,
+            overlay_data: self.overlay_data.clone(),
+            dst_rect: self.dst_rect,
+            subregion: rect + self.subregion.offset(),
+            dst_buffer: self.dst_buffer.clone(),
+        }
+    }
+    fn point(&self, x: i32, y: i32, color: &impl Color) {
+        let x_o = x + self.subregion.x;
+        let y_o = y + self.subregion.y;
+        if x < 0 || y < 0 || x as u32 > self.subregion.w || y as u32 > self.subregion.h {
+            return;
+        }
+        let [r, g, b, a] = color.get(Offset { x: x_o, y: y_o }).into();
+        let (x, y) = (x_o as usize, y_o as usize);
+        let pixel_range = &mut self.overlay_data.borrow_mut()
+            [(x + y * self.dst_rect.w as usize) * 4..(x + y * self.dst_rect.w as usize) * 4 + 4];
+        if a == 255 {
+            // Quick optimization
+            pixel_range.copy_from_slice(&[r, g, b, a]);
+        } else {
+            // Alpha blending. SRC * A / 255 + DST * (255-A) / 255 = (SRC - DST) * A / 255 + DST
+            let (r, g, b, a) = (r as i32, g as i32, b as i32, a as i32);
+            pixel_range[0] = ((r - pixel_range[0] as i32) * a / 255 + pixel_range[0] as i32) as u8;
+            pixel_range[1] = ((g - pixel_range[1] as i32) * a / 255 + pixel_range[1] as i32) as u8;
+            pixel_range[2] = ((b - pixel_range[2] as i32) * a / 255 + pixel_range[2] as i32) as u8;
+            pixel_range[3] = ((255 - a) * pixel_range[3] as i32 / 255 + a) as u8;
         }
     }
 }

@@ -1,9 +1,11 @@
-use std::ops::{Add, Sub, SubAssign};
+use std::ops::{Add, Neg, Sub, SubAssign};
 
 pub mod color;
 pub mod draw;
 #[cfg(feature = "window")]
 pub mod window;
+
+pub use draw::{Buffer, Drawable, Overlay};
 
 #[derive(Clone, Copy, Default)]
 pub struct Rect {
@@ -52,14 +54,8 @@ impl Rect {
         {
             return (other.offset(), Size::default()).into();
         }
-        let end = Offset {
-            x: self_end.x.min(other_end.x),
-            y: self_end.y.min(other_end.y),
-        };
-        let offs = Offset {
-            x: self.x.max(other.x),
-            y: self.y.max(other.y),
-        };
+        let end = self_end.min(other_end);
+        let offs = self.offset().max(other.offset());
         let size = end.abs_diff(offs);
         (offs, size).into()
     }
@@ -79,6 +75,18 @@ impl Offset {
         Size {
             w: self.x.abs_diff(rhs.x),
             h: self.y.abs_diff(rhs.y),
+        }
+    }
+    pub fn max(&self, rhs: Self) -> Self {
+        Self {
+            x: self.x.max(rhs.x),
+            y: self.y.max(rhs.y),
+        }
+    }
+    pub fn min(&self, rhs: Self) -> Self {
+        Self {
+            x: self.x.min(rhs.x),
+            y: self.y.min(rhs.y),
         }
     }
 }
@@ -281,6 +289,17 @@ ref_impls! {impl Add<Self> for Size {
         }
     }
 }}
+
+impl Neg for Offset {
+    type Output = Self;
+
+    fn neg(self) -> Self {
+        Self {
+            x: -self.x,
+            y: -self.y,
+        }
+    }
+}
 
 ref_impls! {impl Add<Offset> for Rect {
     fn add(this, rhs) -> Rect {

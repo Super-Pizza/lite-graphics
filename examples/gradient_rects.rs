@@ -1,7 +1,6 @@
 use lite_graphics::{
     color::{DirectionalGradient, Rgba},
-    draw::Buffer,
-    Offset, Rect,
+    Buffer, Drawable, Offset, Rect,
 };
 
 fn main() {
