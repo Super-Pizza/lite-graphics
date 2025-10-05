@@ -20,7 +20,7 @@ macro_rules! quadrant {
     };
 }
 
-pub trait Drawable {
+pub trait Drawable: Clone {
     fn data(&self) -> std::cell::Ref<'_, Vec<u8>>;
     fn size(&self) -> Size;
 
@@ -706,6 +706,7 @@ pub trait Drawable {
     }
 }
 
+#[derive(Clone)]
 pub struct Buffer {
     pub(crate) data: Rc<RefCell<Vec<u8>>>,
     pub(crate) width: usize,
@@ -764,6 +765,7 @@ impl Drawable for Buffer {
     }
 }
 
+#[derive(Clone)]
 pub struct Overlay {
     // RGB
     base: Rc<RefCell<Vec<u8>>>,
