@@ -20,15 +20,18 @@ macro_rules! quadrant {
     };
 }
 
+pub trait DrawableExt: Drawable {
+    fn subregion(&self, rect: Rect) -> Self;
+}
+
 pub trait Drawable {
     fn data(&self) -> std::cell::Ref<'_, Vec<u8>>;
     fn size(&self) -> Size;
-    fn subregion(&self, rect: Rect) -> Self;
 
-    fn point(&self, x: i32, y: i32, color: &impl Color);
+    fn point(&self, x: i32, y: i32, color: &Color);
 
     /// Fills a rectangle, clipped to the buffer's size
-    fn fill_rect(&self, rect: Rect, color: impl Color) {
+    fn fill_rect(&self, rect: Rect, color: Color) {
         let p1 = rect.offset();
         let p2 = rect.offset_2();
 
@@ -39,7 +42,7 @@ pub trait Drawable {
             }
         }
     }
-    fn line(&self, mut p1: Offset, mut p2: Offset, color: impl Color) {
+    fn line(&self, mut p1: Offset, mut p2: Offset, color: Color) {
         let steep = if p1.x.abs_diff(p2.x) < p1.y.abs_diff(p2.y) {
             mem::swap(&mut p1.x, &mut p1.y);
             mem::swap(&mut p2.x, &mut p2.y);
@@ -75,7 +78,7 @@ pub trait Drawable {
             }
         }
     }
-    fn line_aa(&self, mut p1: Offset, mut p2: Offset, color: impl Color) {
+    fn line_aa(&self, mut p1: Offset, mut p2: Offset, color: Color) {
         let steep = if p1.x.abs_diff(p2.x) < p1.y.abs_diff(p2.y) {
             mem::swap(&mut p1.x, &mut p1.y);
             mem::swap(&mut p2.x, &mut p2.y);
@@ -146,7 +149,7 @@ pub trait Drawable {
             }
         }
     }
-    fn line_h(&self, p1: Offset, length: i32, color: impl Color) {
+    fn line_h(&self, p1: Offset, length: i32, color: Color) {
         let size = Size {
             w: length as _,
             h: 1,
@@ -159,7 +162,7 @@ pub trait Drawable {
             self.point(x, y, &color);
         }
     }
-    fn line_v(&self, p1: Offset, length: i32, color: impl Color) {
+    fn line_v(&self, p1: Offset, length: i32, color: Color) {
         let size = Size {
             w: 1,
             h: length as _,
@@ -173,7 +176,7 @@ pub trait Drawable {
         }
     }
     /// NOTE: this isn't a perfect circle, but it's very efficient.
-    fn circle(&self, center: Offset, radius: u32, color: impl Color) {
+    fn circle(&self, center: Offset, radius: u32, color: Color) {
         let mut e = (1 - radius as i32) / 2;
         let mut x = radius as i32;
         let mut y = 0;
@@ -200,7 +203,7 @@ pub trait Drawable {
             e += y;
         }
     }
-    fn circle_aa(&self, center: Offset, radius: u32, color: impl Color) {
+    fn circle_aa(&self, center: Offset, radius: u32, color: Color) {
         let rmin = (radius * (radius - 2)) as i32;
         let rmax = (radius * (radius + 2)) as i32;
         for y in 0..=radius as i32 {
@@ -228,7 +231,7 @@ pub trait Drawable {
         }
     }
     /// Draws a circle arc from angle1 to angle2 in radians, with positive angles measured counterclockwise from positive x axis.
-    fn circle_arc(&self, center: Offset, radius: u32, angle1: f32, angle2: f32, color: impl Color) {
+    fn circle_arc(&self, center: Offset, radius: u32, angle1: f32, angle2: f32, color: Color) {
         let (angle1, angle2) = if angle2 < angle1 % TAU32 {
             // Corner case where the arc overlaps angle 0.
             self.circle_arc(center, radius, angle1, TAU32, color.clone());
@@ -286,14 +289,7 @@ pub trait Drawable {
         }
     }
     /// Draws a circle arc from angle1 to angle2 in radians, with positive angles measured counterclockwise from positive x axis.
-    fn circle_arc_aa(
-        &self,
-        center: Offset,
-        radius: u32,
-        angle1: f32,
-        angle2: f32,
-        color: impl Color,
-    ) {
+    fn circle_arc_aa(&self, center: Offset, radius: u32, angle1: f32, angle2: f32, color: Color) {
         let (angle1, angle2) = if angle2 < angle1 % TAU32 {
             // Corner case where the arc overlaps angle 0.
             self.circle_arc_aa(center, radius, angle1, TAU32, color.clone());
@@ -343,7 +339,7 @@ pub trait Drawable {
             }
         }
     }
-    fn fill_circle(&self, center: Offset, radius: u32, color: impl Color) {
+    fn fill_circle(&self, center: Offset, radius: u32, color: Color) {
         for y in 0..=radius as i32 {
             let sqy = y * y;
             for x in 0..=radius as i32 {
@@ -354,7 +350,7 @@ pub trait Drawable {
             }
         }
     }
-    fn fill_circle_aa(&self, center: Offset, radius: u32, color: impl Color) {
+    fn fill_circle_aa(&self, center: Offset, radius: u32, color: Color) {
         let rmin = (radius * radius) as i32;
         let rmax = (radius * (radius + 2)) as i32;
         for y in 0..=radius as i32 {
@@ -375,7 +371,7 @@ pub trait Drawable {
             }
         }
     }
-    fn circle_pie(&self, center: Offset, radius: u32, angle1: f32, angle2: f32, color: impl Color) {
+    fn circle_pie(&self, center: Offset, radius: u32, angle1: f32, angle2: f32, color: Color) {
         let (angle1, angle2) = if angle2 < angle1 % TAU32 {
             // Corner case where the arc overlaps angle 0.
             self.circle_pie(center, radius, angle1, TAU32, color.clone());
@@ -413,14 +409,7 @@ pub trait Drawable {
             }
         }
     }
-    fn circle_pie_aa(
-        &self,
-        center: Offset,
-        radius: u32,
-        angle1: f32,
-        angle2: f32,
-        color: impl Color,
-    ) {
+    fn circle_pie_aa(&self, center: Offset, radius: u32, angle1: f32, angle2: f32, color: Color) {
         let (angle1, angle2) = if angle2 < angle1 % TAU32 {
             // Corner case where the arc overlaps angle 0.
             self.circle_pie_aa(center, radius, angle1, TAU32, color.clone());
@@ -508,7 +497,7 @@ pub trait Drawable {
             }
         }
     }
-    fn rect(&self, rect: Rect, color: impl Color) {
+    fn rect(&self, rect: Rect, color: Color) {
         let p1 = rect.offset();
         let p3 = rect.offset_2();
 
@@ -521,7 +510,7 @@ pub trait Drawable {
             self.point(p3.x, y, &color);
         }
     }
-    fn round_rect(&self, rect: Rect, radius: u32, color: impl Color) {
+    fn round_rect(&self, rect: Rect, radius: u32, color: Color) {
         let p1 = rect.offset();
         let p3 = rect.offset_2();
 
@@ -565,7 +554,7 @@ pub trait Drawable {
             e += y;
         }
     }
-    fn round_rect_aa(&self, rect: Rect, radius: u32, color: impl Color) {
+    fn round_rect_aa(&self, rect: Rect, radius: u32, color: Color) {
         let rmin = (radius * (radius - 2)) as i32;
         let rmax = if radius == 0 {
             1
@@ -624,7 +613,7 @@ pub trait Drawable {
             }
         }
     }
-    fn fill_round_rect(&self, rect: Rect, radius: u32, color: impl Color) {
+    fn fill_round_rect(&self, rect: Rect, radius: u32, color: Color) {
         let p1 = rect.offset();
         let p3 = rect.offset_2();
 
@@ -664,7 +653,7 @@ pub trait Drawable {
             }
         }
     }
-    fn fill_round_rect_aa(&self, rect: Rect, radius: u32, color: impl Color) {
+    fn fill_round_rect_aa(&self, rect: Rect, radius: u32, color: Color) {
         let rmin = if radius == 0 { 1 } else { radius * radius } as i32;
         let rmax = (radius * (radius + 2)) as i32;
 
@@ -737,6 +726,19 @@ impl Buffer {
         }
     }
 }
+
+impl DrawableExt for Buffer {
+    fn subregion(&self, rect: Rect) -> Self {
+        let rect = rect.clamp(self.subregion);
+        Self {
+            data: self.data.clone(),
+            width: self.width,
+            height: self.height,
+            subregion: rect + self.subregion.offset(),
+        }
+    }
+}
+
 impl Drawable for Buffer {
     fn data(&self) -> std::cell::Ref<'_, Vec<u8>> {
         self.data.borrow()
@@ -747,16 +749,7 @@ impl Drawable for Buffer {
             h: self.height as u32,
         }
     }
-    fn subregion(&self, rect: Rect) -> Self {
-        let rect = rect.clamp(self.subregion);
-        Self {
-            data: self.data.clone(),
-            width: self.width,
-            height: self.height,
-            subregion: rect + self.subregion.offset(),
-        }
-    }
-    fn point(&self, x: i32, y: i32, color: &impl Color) {
+    fn point(&self, x: i32, y: i32, color: &Color) {
         let x_o = x + self.subregion.x;
         let y_o = y + self.subregion.y;
         if x < 0 || y < 0 || x as u32 > self.subregion.w || y as u32 > self.subregion.h {
@@ -812,6 +805,21 @@ impl Overlay {
     }
 }
 
+impl DrawableExt for Overlay {
+    fn subregion(&self, rect: Rect) -> Self {
+        let rect = rect.clamp(self.subregion);
+        Self {
+            base: self.base.clone(),
+            base_width: self.base_width,
+            base_height: self.base_height,
+            overlay_data: self.overlay_data.clone(),
+            dst_rect: self.dst_rect,
+            subregion: rect + self.subregion.offset(),
+            dst_buffer: self.dst_buffer.clone(),
+        }
+    }
+}
+
 impl Drawable for Overlay {
     fn data(&self) -> std::cell::Ref<'_, Vec<u8>> {
         let base = self.base.borrow();
@@ -859,19 +867,7 @@ impl Drawable for Overlay {
             h: self.base_height as u32,
         }
     }
-    fn subregion(&self, rect: Rect) -> Self {
-        let rect = rect.clamp(self.subregion);
-        Self {
-            base: self.base.clone(),
-            base_width: self.base_width,
-            base_height: self.base_height,
-            overlay_data: self.overlay_data.clone(),
-            dst_rect: self.dst_rect,
-            subregion: rect + self.subregion.offset(),
-            dst_buffer: self.dst_buffer.clone(),
-        }
-    }
-    fn point(&self, x: i32, y: i32, color: &impl Color) {
+    fn point(&self, x: i32, y: i32, color: &Color) {
         let x_o = x + self.subregion.x;
         let y_o = y + self.subregion.y;
         if x < 0 || y < 0 || x as u32 > self.subregion.w || y as u32 > self.subregion.h {

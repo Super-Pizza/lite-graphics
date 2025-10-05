@@ -1,4 +1,7 @@
-use lite_graphics::{color::Rgba, Buffer, Drawable, Rect};
+use lite_graphics::{
+    color::{Color, Rgba},
+    Buffer, Drawable, Rect,
+};
 
 fn main() {
     let buf = Buffer::new(400, 300);
@@ -9,7 +12,7 @@ fn main() {
             w: 150,
             h: 100,
         },
-        Rgba::RED,
+        Color::RED,
     );
     buf.fill_rect(
         Rect {
@@ -18,7 +21,7 @@ fn main() {
             w: 150,
             h: 100,
         },
-        Rgba::from([0, 0, 255, 128]),
+        Rgba::from([0, 0, 255, 128]).into(),
     );
     buf.rect(
         Rect {
@@ -27,7 +30,7 @@ fn main() {
             w: 300,
             h: 200,
         },
-        Rgba::GREEN,
+        Color::GREEN,
     );
     buf.draw();
 }

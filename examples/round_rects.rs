@@ -1,4 +1,4 @@
-use lite_graphics::{color::Rgba, Buffer, Drawable, Rect};
+use lite_graphics::{color::Color, Buffer, Drawable, Rect};
 
 fn main() {
     let buf = Buffer::new(400, 300);
@@ -10,7 +10,7 @@ fn main() {
             h: 200,
         },
         10,
-        Rgba::RED,
+        Color::RED,
     );
     buf.round_rect_aa(
         Rect {
@@ -20,7 +20,7 @@ fn main() {
             h: 100,
         },
         10,
-        Rgba::BLUE,
+        Color::BLUE,
     );
     buf.fill_round_rect(
         Rect {
@@ -30,7 +30,7 @@ fn main() {
             h: 50,
         },
         10,
-        Rgba::BLACK.set_a(127),
+        Color::BLACK.set_a(127),
     );
     buf.fill_round_rect_aa(
         Rect {
@@ -40,7 +40,7 @@ fn main() {
             h: 50,
         },
         10,
-        Rgba::BLACK.set_a(127),
+        Color::BLACK.set_a(127),
     );
     buf.draw();
 }

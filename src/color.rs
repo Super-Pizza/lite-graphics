@@ -1,8 +1,81 @@
 use crate::Offset;
 
-pub trait Color: Clone {
-    fn get(&self, pos: Offset) -> Rgba;
-    fn set_a(&self, a: u8) -> Self;
+#[derive(Clone)]
+pub enum Color {
+    Rgba(Rgba),
+    DirectionalGradient(DirectionalGradient),
+}
+
+impl Color {
+    pub const RED: Self = Self::Rgba(Rgba::RED);
+    pub const GREEN: Self = Self::Rgba(Rgba::GREEN);
+    pub const BLUE: Self = Self::Rgba(Rgba::BLUE);
+    pub const YELLOW: Self = Self::Rgba(Rgba::YELLOW);
+    pub const CYAN: Self = Self::Rgba(Rgba::CYAN);
+    pub const MAGENTA: Self = Self::Rgba(Rgba::MAGENTA);
+    pub const DARK_RED: Self = Self::Rgba(Rgba::DARK_RED);
+    pub const DARK_GREEN: Self = Self::Rgba(Rgba::DARK_GREEN);
+    pub const DARK_BLUE: Self = Self::Rgba(Rgba::DARK_BLUE);
+    pub const DARK_YELLOW: Self = Self::Rgba(Rgba::DARK_YELLOW);
+    pub const DARK_CYAN: Self = Self::Rgba(Rgba::DARK_CYAN);
+    pub const DARK_MAGENTA: Self = Self::Rgba(Rgba::DARK_MAGENTA);
+    pub const ORANGE: Self = Self::Rgba(Rgba::ORANGE);
+    pub const PINK: Self = Self::Rgba(Rgba::PINK);
+    pub const BROWN: Self = Self::Rgba(Rgba::BROWN);
+    pub const GRAY: Self = Self::Rgba(Rgba::GRAY);
+    pub const SILVER: Self = Self::Rgba(Rgba::SILVER);
+    pub const BLACK: Self = Self::Rgba(Rgba::BLACK);
+    pub const WHITE: Self = Self::Rgba(Rgba::WHITE);
+    pub const TRANSPARENT: Self = Self::Rgba(Rgba::TRANSPARENT);
+
+    /// Parse hex string
+    pub const fn hex(val: &'static str) -> Option<Self> {
+        match Rgba::hex(val) {
+            Some(x) => Some(Self::Rgba(x)),
+            None => None,
+        }
+    }
+
+    pub fn get(&self, pos: Offset) -> Rgba {
+        match self {
+            Self::Rgba(rgba) => rgba.get(pos),
+            Self::DirectionalGradient(grad) => grad.get(pos),
+        }
+    }
+    pub fn set_a(&self, a: u8) -> Self {
+        match self {
+            Self::Rgba(rgba) => Self::Rgba(rgba.set_a(a)),
+            Self::DirectionalGradient(grad) => Self::DirectionalGradient(grad.set_a(a)),
+        }
+    }
+
+    /// Maps an Rgba value if one.
+    pub fn map<F: Fn(Rgba) -> Rgba>(self, f: F) -> Self {
+        match self {
+            Self::Rgba(rgba) => Self::Rgba(f(rgba)),
+            x => x,
+        }
+    }
+
+    pub fn get_rgba(&self) -> Option<Rgba> {
+        if let Self::Rgba(rgba) = self {
+            Some(*rgba)
+        } else {
+            None
+        }
+    }
+}
+
+impl From<Rgba> for Color {
+    fn from(value: Rgba) -> Self {
+        Self::Rgba(value)
+    }
+}
+
+impl From<DirectionalGradient> for Color {
+    fn from(value: DirectionalGradient) -> Self {
+        Self::DirectionalGradient(value)
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -68,7 +141,6 @@ impl Rgba {
     pub const BLACK: Self = Self::hex("#000").unwrap();
     pub const WHITE: Self = Self::hex("#fff").unwrap();
     pub const TRANSPARENT: Self = Self::hex("#0000").unwrap();
-
     // Parse hex string (const fn).
     pub const fn hex(val: &'static str) -> Option<Self> {
         const fn hex_decode(n1: u8, n2: u8) -> Option<u8> {
@@ -170,14 +242,8 @@ impl Rgba {
     pub const fn intensity(&self) -> u8 {
         ((self.r as i32 + self.g as i32 + self.b as i32) / 3) as u8
     }
-}
-
-impl Color for Rgba {
     fn get(&self, _pos: Offset) -> Rgba {
         *self
-    }
-    fn set_a(&self, a: u8) -> Self {
-        Rgba::set_a(*self, a)
     }
 }
 
@@ -284,9 +350,6 @@ impl DirectionalGradient {
             offset,
         }
     }
-}
-
-impl Color for DirectionalGradient {
     fn get(&self, pos: Offset) -> Rgba {
         let (sin, cos) = self.angle.sin_cos();
         let real_x = (pos.x - self.offset.x) as f32 * cos - (pos.y - self.offset.y) as f32 * sin;

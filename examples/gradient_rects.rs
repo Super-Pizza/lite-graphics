@@ -1,5 +1,5 @@
 use lite_graphics::{
-    color::{DirectionalGradient, Rgba},
+    color::{Color, DirectionalGradient, Rgba},
     Buffer, Drawable, Offset, Rect,
 };
 
@@ -18,7 +18,8 @@ fn main() {
             0.,
             150.,
             Offset { x: 100, y: 100 },
-        ),
+        )
+        .into(),
     );
     buf.fill_rect(
         Rect {
@@ -33,7 +34,8 @@ fn main() {
             0.,
             150.,
             Offset { x: 150, y: 150 },
-        ),
+        )
+        .into(),
     );
     buf.rect(
         Rect {
@@ -42,7 +44,7 @@ fn main() {
             w: 300,
             h: 200,
         },
-        Rgba::GREEN,
+        Color::GREEN,
     );
     buf.draw();
 }
