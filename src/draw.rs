@@ -20,13 +20,11 @@ macro_rules! quadrant {
     };
 }
 
-pub trait DrawableExt: Drawable {
-    fn subregion(&self, rect: Rect) -> Self;
-}
-
 pub trait Drawable {
     fn data(&self) -> std::cell::Ref<'_, Vec<u8>>;
     fn size(&self) -> Size;
+
+    fn subregion(&mut self, rect: Rect);
 
     fn point(&self, x: i32, y: i32, color: &Color);
 
@@ -727,22 +725,16 @@ impl Buffer {
     }
 }
 
-impl DrawableExt for Buffer {
-    fn subregion(&self, rect: Rect) -> Self {
-        let rect = rect.clamp(self.subregion);
-        Self {
-            data: self.data.clone(),
-            width: self.width,
-            height: self.height,
-            subregion: rect + self.subregion.offset(),
-        }
-    }
-}
-
 impl Drawable for Buffer {
     fn data(&self) -> std::cell::Ref<'_, Vec<u8>> {
         self.data.borrow()
     }
+
+    fn subregion(&mut self, rect: Rect) {
+        let rect = rect.clamp(self.subregion.size().into());
+        self.subregion = rect + self.subregion.offset();
+    }
+
     fn size(&self) -> Size {
         Size {
             w: self.width as u32,
@@ -805,21 +797,6 @@ impl Overlay {
     }
 }
 
-impl DrawableExt for Overlay {
-    fn subregion(&self, rect: Rect) -> Self {
-        let rect = rect.clamp(self.subregion);
-        Self {
-            base: self.base.clone(),
-            base_width: self.base_width,
-            base_height: self.base_height,
-            overlay_data: self.overlay_data.clone(),
-            dst_rect: self.dst_rect,
-            subregion: rect + self.subregion.offset(),
-            dst_buffer: self.dst_buffer.clone(),
-        }
-    }
-}
-
 impl Drawable for Overlay {
     fn data(&self) -> std::cell::Ref<'_, Vec<u8>> {
         let base = self.base.borrow();
@@ -861,6 +838,12 @@ impl Drawable for Overlay {
         mem::drop(result);
         self.dst_buffer.borrow()
     }
+
+    fn subregion(&mut self, rect: Rect) {
+        let rect = rect.clamp(self.subregion.size().into());
+        self.subregion = rect + self.subregion.offset();
+    }
+
     fn size(&self) -> Size {
         Size {
             w: self.base_width as u32,
