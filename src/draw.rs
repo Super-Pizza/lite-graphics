@@ -25,6 +25,7 @@ pub trait Drawable {
     fn size(&self) -> Size;
 
     fn subregion(&mut self, rect: Rect);
+    fn end_subregion(&mut self);
 
     fn point(&self, x: i32, y: i32, color: &Color);
 
@@ -710,7 +711,7 @@ pub struct Buffer {
     pub(crate) data: Rc<RefCell<Vec<u8>>>,
     pub(crate) width: usize,
     pub(crate) height: usize,
-    pub(crate) subregion: Rect,
+    pub(crate) subregions: Vec<Rect>,
 }
 
 impl Buffer {
@@ -720,7 +721,7 @@ impl Buffer {
             data: Rc::new(RefCell::new(vec![255; width * height * 3])),
             width,
             height,
-            subregion: Size::new(width as _, height as _).into(),
+            subregions: vec![Size::new(width as _, height as _).into()],
         }
     }
 }
@@ -731,8 +732,16 @@ impl Drawable for Buffer {
     }
 
     fn subregion(&mut self, rect: Rect) {
-        let rect = rect.clamp(self.subregion.size().into());
-        self.subregion = rect + self.subregion.offset();
+        let rect = rect.clamp(self.subregions.last().unwrap().size().into());
+        self.subregions
+            .push(rect + self.subregions.last().unwrap().offset());
+    }
+
+    fn end_subregion(&mut self) {
+        if self.subregions.len() == 1 {
+            return;
+        }
+        self.subregions.pop();
     }
 
     fn size(&self) -> Size {
@@ -742,9 +751,10 @@ impl Drawable for Buffer {
         }
     }
     fn point(&self, x: i32, y: i32, color: &Color) {
-        let x_o = x + self.subregion.x;
-        let y_o = y + self.subregion.y;
-        if x < 0 || y < 0 || x as u32 > self.subregion.w || y as u32 > self.subregion.h {
+        let subregion = self.subregions.last().unwrap();
+        let x_o = x + subregion.x;
+        let y_o = y + subregion.y;
+        if x < 0 || y < 0 || x as u32 > subregion.w || y as u32 > subregion.h {
             return;
         }
         let [r, g, b, a] = color.get(Offset { x: x_o, y: y_o }).into();
@@ -772,7 +782,7 @@ pub struct Overlay {
     // Premultiplied RGB + Alpha
     overlay_data: Rc<RefCell<Vec<u8>>>,
     dst_rect: Rect,
-    subregion: Rect,
+    subregions: Vec<Rect>,
     // RGB result
     dst_buffer: Rc<RefCell<Vec<u8>>>,
 }
@@ -787,7 +797,7 @@ impl Overlay {
             base_height: base.height,
             overlay_data: overlay,
             dst_rect: rect,
-            subregion: rect.size().into(),
+            subregions: vec![rect.size().into()],
             dst_buffer,
         }
     }
@@ -840,8 +850,16 @@ impl Drawable for Overlay {
     }
 
     fn subregion(&mut self, rect: Rect) {
-        let rect = rect.clamp(self.subregion.size().into());
-        self.subregion = rect + self.subregion.offset();
+        let rect = rect.clamp(self.subregions.last().unwrap().size().into());
+        self.subregions
+            .push(rect + self.subregions.last().unwrap().offset());
+    }
+
+    fn end_subregion(&mut self) {
+        if self.subregions.len() == 1 {
+            return;
+        }
+        self.subregions.pop();
     }
 
     fn size(&self) -> Size {
@@ -851,9 +869,10 @@ impl Drawable for Overlay {
         }
     }
     fn point(&self, x: i32, y: i32, color: &Color) {
-        let x_o = x + self.subregion.x;
-        let y_o = y + self.subregion.y;
-        if x < 0 || y < 0 || x as u32 > self.subregion.w || y as u32 > self.subregion.h {
+        let subregion = self.subregions.last().unwrap();
+        let x_o = x + subregion.x;
+        let y_o = y + subregion.y;
+        if x < 0 || y < 0 || x as u32 > subregion.w || y as u32 > subregion.h {
             return;
         }
         let [r, g, b, a] = color.get(Offset { x: x_o, y: y_o }).into();
