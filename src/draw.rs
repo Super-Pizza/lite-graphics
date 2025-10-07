@@ -156,7 +156,7 @@ pub trait Drawable {
         let rect = Rect::new(p1, size);
 
         let (x1, y) = (rect.x, rect.y);
-        let x2 = rect.offset_2().x;
+        let x2 = rect.offset_2().x - 1;
         for x in x1..x2 {
             self.point(x, y, &color);
         }
@@ -169,7 +169,7 @@ pub trait Drawable {
         let rect = Rect::new(p1, size);
 
         let (x, y1) = (rect.x, rect.y);
-        let y2 = rect.offset_2().y;
+        let y2 = rect.offset_2().y - 1;
         for y in y1..y2 {
             self.point(x, y, &color);
         }
@@ -498,7 +498,7 @@ pub trait Drawable {
     }
     fn rect(&self, rect: Rect, color: Color) {
         let p1 = rect.offset();
-        let p3 = rect.offset_2();
+        let p3 = rect.offset_2() - Offset::new(1, 1);
 
         for x in p1.x..=p3.x {
             self.point(x, p1.y, &color);
@@ -511,7 +511,7 @@ pub trait Drawable {
     }
     fn round_rect(&self, rect: Rect, radius: u32, color: Color) {
         let p1 = rect.offset();
-        let p3 = rect.offset_2();
+        let p3 = rect.offset_2() - Offset::new(1, 1);
 
         let p1_c = Offset {
             x: p1.x + radius as i32,
@@ -562,7 +562,7 @@ pub trait Drawable {
         } as i32;
 
         let p1 = rect.offset();
-        let p3 = rect.offset_2();
+        let p3 = rect.offset_2() - Offset::new(1, 1);
 
         let p1_c = Offset {
             x: p1.x + radius as i32,
@@ -614,7 +614,7 @@ pub trait Drawable {
     }
     fn fill_round_rect(&self, rect: Rect, radius: u32, color: Color) {
         let p1 = rect.offset();
-        let p3 = rect.offset_2();
+        let p3 = rect.offset_2() - Offset::new(1, 1);
 
         let p1_c = Offset {
             x: p1.x + radius as i32,
@@ -657,7 +657,7 @@ pub trait Drawable {
         let rmax = (radius * (radius + 2)) as i32;
 
         let p1 = rect.offset();
-        let p3 = rect.offset_2();
+        let p3 = rect.offset_2() - Offset::new(1, 1);
 
         let p1_c = Offset {
             x: p1.x + radius as i32,
