@@ -757,7 +757,7 @@ impl Drawable for Buffer {
         let subregion = self.subregions.last().unwrap();
         let x_o = x + subregion.x;
         let y_o = y + subregion.y;
-        if x < 0 || y < 0 || x as u32 > subregion.w || y as u32 > subregion.h {
+        if x < 0 || y < 0 || x as u32 >= subregion.w || y as u32 >= subregion.h {
             return;
         }
         let [r, g, b, a] = color.get(Offset { x: x_o, y: y_o }).into();
@@ -876,7 +876,7 @@ impl Drawable for Overlay {
         let subregion = self.subregions.last().unwrap();
         let x_o = x + subregion.x;
         let y_o = y + subregion.y;
-        if x < 0 || y < 0 || x as u32 > subregion.w || y as u32 > subregion.h {
+        if x < 0 || y < 0 || x as u32 >= subregion.w || y as u32 >= subregion.h {
             return;
         }
         let [r, g, b, a] = color.get(Offset { x: x_o, y: y_o }).into();
