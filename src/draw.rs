@@ -724,6 +724,9 @@ impl Buffer {
             subregions: vec![Size::new(width as _, height as _).into()],
         }
     }
+    pub fn get_subregion(&self) -> Rect {
+        *self.subregions.last().unwrap()
+    }
 }
 
 impl Drawable for Buffer {
