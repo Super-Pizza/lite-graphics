@@ -819,8 +819,8 @@ impl Drawable for Overlay {
         let dst_rect = self
             .dst_rect
             .clamp(Size::new(self.base_width as _, self.base_height as _).into());
-        for i in 0..self.base_width {
-            for j in 0..self.base_height {
+        for j in 0..self.base_height {
+            for i in 0..self.base_width {
                 let offs = 3 * (i + j * self.base_width);
                 if i < dst_rect.x as _
                     || i >= dst_rect.offset_2().x as _
@@ -828,6 +828,7 @@ impl Drawable for Overlay {
                     || j >= dst_rect.offset_2().y as _
                 {
                     result[offs..offs + 3].copy_from_slice(&base[offs..offs + 3]);
+                    continue;
                 }
 
                 let overlay_offs = src_offs + (Offset::new(i as _, j as _) - dst_rect.offset());
