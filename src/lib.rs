@@ -1,4 +1,4 @@
-use std::ops::{Add, Neg, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Neg, Sub, SubAssign};
 
 pub mod color;
 pub mod draw;
@@ -272,6 +272,12 @@ ref_impls! {impl Add<Offset> for Size {
     }
 }}
 
+ref_impls! {impl AddAssign<Size> for Offset {
+    fn add_assign(&mut this, rhs) {
+        *this = *this + rhs
+    }
+}}
+
 ref_impls! {impl Add<Self> for Offset {
     fn add(this, rhs) -> Offset {
         Offset {
@@ -281,12 +287,24 @@ ref_impls! {impl Add<Self> for Offset {
     }
 }}
 
+ref_impls! {impl AddAssign<Self> for Offset {
+    fn add_assign(&mut this, rhs) {
+        *this = *this + rhs
+    }
+}}
+
 ref_impls! {impl Add<Self> for Size {
     fn add(this, rhs) -> Size {
         Size {
             w: this.w + rhs.w,
             h: this.h + rhs.h,
         }
+    }
+}}
+
+ref_impls! {impl AddAssign<Self> for Size {
+    fn add_assign(&mut this, rhs) {
+        *this = *this + rhs
     }
 }}
 
