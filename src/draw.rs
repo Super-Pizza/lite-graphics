@@ -21,14 +21,19 @@ macro_rules! quadrant {
 }
 
 pub trait Drawable {
+    /// Get the buffer's size
     fn size(&self) -> Size;
 
+    /// Limit the drawing to a subregion. Any further operations are relative to the subregion, including further subregions.
     fn subregion(&mut self, rect: Rect);
+
+    /// Pop a subregion, keeping the one before as the new subregion.
     fn end_subregion(&mut self);
 
+    /// Draw one pixel.
     fn point(&self, x: i32, y: i32, color: &Color);
 
-    /// Fills a rectangle, clipped to the buffer's size
+    /// Draws a filled rectangle.
     fn fill_rect(&self, rect: Rect, color: Color) {
         let p1 = rect.offset();
         let p2 = rect.offset_2();
@@ -40,6 +45,8 @@ pub trait Drawable {
             }
         }
     }
+    
+    /// Draws an aliased line
     fn line(&self, mut p1: Offset, mut p2: Offset, color: Color) {
         let steep = if p1.x.abs_diff(p2.x) < p1.y.abs_diff(p2.y) {
             mem::swap(&mut p1.x, &mut p1.y);
@@ -76,6 +83,8 @@ pub trait Drawable {
             }
         }
     }
+
+    /// Draws an antialiased line
     fn line_aa(&self, mut p1: Offset, mut p2: Offset, color: Color) {
         let steep = if p1.x.abs_diff(p2.x) < p1.y.abs_diff(p2.y) {
             mem::swap(&mut p1.x, &mut p1.y);
@@ -147,6 +156,8 @@ pub trait Drawable {
             }
         }
     }
+
+    /// Draws a horizontal line
     fn line_h(&self, p1: Offset, length: i32, color: Color) {
         let size = Size {
             w: length as _,
@@ -160,6 +171,8 @@ pub trait Drawable {
             self.point(x, y, &color);
         }
     }
+
+    /// Draws a vertical line
     fn line_v(&self, p1: Offset, length: i32, color: Color) {
         let size = Size {
             w: 1,
@@ -173,7 +186,8 @@ pub trait Drawable {
             self.point(x, y, &color);
         }
     }
-    /// NOTE: this isn't a perfect circle, but it's very efficient.
+
+    /// Draws an aliased circle. Imperfect, but very fast.
     fn circle(&self, center: Offset, radius: u32, color: Color) {
         let mut e = (1 - radius as i32) / 2;
         let mut x = radius as i32;
@@ -201,6 +215,8 @@ pub trait Drawable {
             e += y;
         }
     }
+
+    /// Draws an antialiased circle. Doesn't use square roots for efficiency.
     fn circle_aa(&self, center: Offset, radius: u32, color: Color) {
         let rmin = (radius * (radius - 2)) as i32;
         let rmax = (radius * (radius + 2)) as i32;
@@ -228,7 +244,8 @@ pub trait Drawable {
             }
         }
     }
-    /// Draws a circle arc from angle1 to angle2 in radians, with positive angles measured counterclockwise from positive x axis.
+
+    /// Draws an aliased circle arc from angle1 to angle2 in radians, with positive angles measured counterclockwise from positive x axis.
     fn circle_arc(&self, center: Offset, radius: u32, angle1: f32, angle2: f32, color: Color) {
         let (angle1, angle2) = if angle2 < angle1 % TAU32 {
             // Corner case where the arc overlaps angle 0.
@@ -286,7 +303,7 @@ pub trait Drawable {
             e += y;
         }
     }
-    /// Draws a circle arc from angle1 to angle2 in radians, with positive angles measured counterclockwise from positive x axis.
+    /// Draws an antialiased circle arc from angle1 to angle2 in radians, with positive angles measured counterclockwise from positive x axis.
     fn circle_arc_aa(&self, center: Offset, radius: u32, angle1: f32, angle2: f32, color: Color) {
         let (angle1, angle2) = if angle2 < angle1 % TAU32 {
             // Corner case where the arc overlaps angle 0.
@@ -337,6 +354,8 @@ pub trait Drawable {
             }
         }
     }
+
+    /// Draws an aliased, filled circle.
     fn fill_circle(&self, center: Offset, radius: u32, color: Color) {
         for y in 0..=radius as i32 {
             let sqy = y * y;
@@ -348,6 +367,8 @@ pub trait Drawable {
             }
         }
     }
+
+    /// Draws an antialiased, filled circle.
     fn fill_circle_aa(&self, center: Offset, radius: u32, color: Color) {
         let rmin = (radius * radius) as i32;
         let rmax = (radius * (radius + 2)) as i32;
@@ -369,6 +390,8 @@ pub trait Drawable {
             }
         }
     }
+
+    /// Draws an aliased, filled circle pie.
     fn circle_pie(&self, center: Offset, radius: u32, angle1: f32, angle2: f32, color: Color) {
         let (angle1, angle2) = if angle2 < angle1 % TAU32 {
             // Corner case where the arc overlaps angle 0.
@@ -407,6 +430,8 @@ pub trait Drawable {
             }
         }
     }
+
+    /// Draws an antialiased, filled circle pie.
     fn circle_pie_aa(&self, center: Offset, radius: u32, angle1: f32, angle2: f32, color: Color) {
         let (angle1, angle2) = if angle2 < angle1 % TAU32 {
             // Corner case where the arc overlaps angle 0.
@@ -495,6 +520,8 @@ pub trait Drawable {
             }
         }
     }
+
+    /// Draws a rectangle border.
     fn rect(&self, rect: Rect, color: Color) {
         let p1 = rect.offset();
         let p3 = rect.offset_2() - Offset::new(1, 1);
@@ -508,6 +535,8 @@ pub trait Drawable {
             self.point(p3.x, y, &color);
         }
     }
+
+    /// Draws an aliased rounded rectangle border.
     fn round_rect(&self, rect: Rect, radius: u32, color: Color) {
         let p1 = rect.offset();
         let p3 = rect.offset_2() - Offset::new(1, 1);
@@ -552,6 +581,8 @@ pub trait Drawable {
             e += y;
         }
     }
+
+    /// Draws an antialiased rounded rectangle border.
     fn round_rect_aa(&self, rect: Rect, radius: u32, color: Color) {
         let rmin = (radius * (radius - 2)) as i32;
         let rmax = if radius == 0 {
@@ -611,6 +642,8 @@ pub trait Drawable {
             }
         }
     }
+
+    /// Draws a filled aliased rounded rectangle.
     fn fill_round_rect(&self, rect: Rect, radius: u32, color: Color) {
         let p1 = rect.offset();
         let p3 = rect.offset_2() - Offset::new(1, 1);
@@ -651,6 +684,8 @@ pub trait Drawable {
             }
         }
     }
+
+    /// Draws a filled antialiased rounded rectangle.
     fn fill_round_rect_aa(&self, rect: Rect, radius: u32, color: Color) {
         let rmin = if radius == 0 { 1 } else { radius * radius } as i32;
         let rmax = (radius * (radius + 2)) as i32;
@@ -804,6 +839,7 @@ impl Overlay {
         self.dst_rect.y = offset.y;
     }
 
+    /// Writes to the underlying buffer, and returns a copy.
     pub fn write(&self) -> Buffer {
         let mut base = self.base.borrow_mut();
         let overlay = self.overlay_data.borrow();
