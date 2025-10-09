@@ -21,7 +21,6 @@ macro_rules! quadrant {
 }
 
 pub trait Drawable {
-    fn data(&self) -> std::cell::Ref<'_, Vec<u8>>;
     fn size(&self) -> Size;
 
     fn subregion(&mut self, rect: Rect);
@@ -727,13 +726,13 @@ impl Buffer {
     pub fn get_subregion(&self) -> Rect {
         *self.subregions.last().unwrap()
     }
+
+    pub fn data(&self) -> std::cell::Ref<'_, Vec<u8>> {
+        self.data.borrow()
+    }
 }
 
 impl Drawable for Buffer {
-    fn data(&self) -> std::cell::Ref<'_, Vec<u8>> {
-        self.data.borrow()
-    }
-
     fn subregion(&mut self, rect: Rect) {
         let rect = rect.clamp(self.subregions.last().unwrap().size().into());
         self.subregions
@@ -786,13 +785,10 @@ pub struct Overlay {
     overlay_data: Rc<RefCell<Vec<u8>>>,
     dst_rect: Rect,
     subregions: Vec<Rect>,
-    // RGB result
-    dst_buffer: Rc<RefCell<Vec<u8>>>,
 }
 
 impl Overlay {
     pub fn new(base: Buffer, rect: Rect) -> Self {
-        let dst_buffer = Rc::new(RefCell::new(base.data.borrow().clone()));
         let overlay = Rc::new(RefCell::new(vec![0; rect.w as usize * rect.h as usize * 4]));
         Self {
             base: base.data,
@@ -801,20 +797,16 @@ impl Overlay {
             overlay_data: overlay,
             dst_rect: rect,
             subregions: vec![rect.size().into()],
-            dst_buffer,
         }
     }
     pub fn offset(&mut self, offset: Offset) {
         self.dst_rect.x = offset.x;
         self.dst_rect.y = offset.y;
     }
-}
 
-impl Drawable for Overlay {
-    fn data(&self) -> std::cell::Ref<'_, Vec<u8>> {
-        let base = self.base.borrow();
+    pub fn write(&self) -> Buffer {
+        let mut base = self.base.borrow_mut();
         let overlay = self.overlay_data.borrow();
-        let mut result = self.dst_buffer.borrow_mut();
         let src_offs = -self.dst_rect.offset().min(Offset::default());
         let dst_rect = self
             .dst_rect
@@ -827,7 +819,6 @@ impl Drawable for Overlay {
                     || j < dst_rect.y as _
                     || j >= dst_rect.offset_2().y as _
                 {
-                    result[offs..offs + 3].copy_from_slice(&base[offs..offs + 3]);
                     continue;
                 }
 
@@ -840,19 +831,26 @@ impl Drawable for Overlay {
                 };
                 if a == 255 {
                     // Quick optimization
-                    result[offs..offs + 3].copy_from_slice(&[r, g, b]);
+                    base[offs..offs + 3].copy_from_slice(&[r, g, b]);
                     continue;
                 }
                 let (r, g, b, a) = (r as i32, g as i32, b as i32, a as i32);
-                result[offs] = ((255 - a) * base[offs] as i32 / 255 + r) as u8;
-                result[offs + 1] = ((255 - a) * base[offs + 1] as i32 / 255 + g) as u8;
-                result[offs + 2] = ((255 - a) * base[offs + 2] as i32 / 255 + b) as u8;
+                base[offs] = ((255 - a) * base[offs] as i32 / 255 + r) as u8;
+                base[offs + 1] = ((255 - a) * base[offs + 1] as i32 / 255 + g) as u8;
+                base[offs + 2] = ((255 - a) * base[offs + 2] as i32 / 255 + b) as u8;
             }
         }
-        mem::drop(result);
-        self.dst_buffer.borrow()
+        mem::drop(base);
+        Buffer {
+            data: self.base.clone(),
+            width: self.base_width,
+            height: self.base_height,
+            subregions: vec![Size::new(self.base_width as _, self.base_height as _).into()],
+        }
     }
+}
 
+impl Drawable for Overlay {
     fn subregion(&mut self, rect: Rect) {
         let rect = rect.clamp(self.subregions.last().unwrap().size().into());
         self.subregions
