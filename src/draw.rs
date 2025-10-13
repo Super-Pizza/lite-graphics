@@ -30,6 +30,8 @@ pub trait Drawable {
     /// Pop a subregion, keeping the one before as the new subregion.
     fn end_subregion(&mut self);
 
+    fn get_subregion(&self) -> Rect;
+
     /// Draw one pixel.
     fn point(&self, x: i32, y: i32, color: &Color);
 
@@ -45,7 +47,7 @@ pub trait Drawable {
             }
         }
     }
-    
+
     /// Draws an aliased line
     fn line(&self, mut p1: Offset, mut p2: Offset, color: Color) {
         let steep = if p1.x.abs_diff(p2.x) < p1.y.abs_diff(p2.y) {
@@ -758,10 +760,6 @@ impl Buffer {
             subregions: vec![Size::new(width as _, height as _).into()],
         }
     }
-    pub fn get_subregion(&self) -> Rect {
-        *self.subregions.last().unwrap()
-    }
-
     pub fn data(&self) -> std::cell::Ref<'_, Vec<u8>> {
         self.data.borrow()
     }
@@ -779,6 +777,10 @@ impl Drawable for Buffer {
             return;
         }
         self.subregions.pop();
+    }
+
+    fn get_subregion(&self) -> Rect {
+        *self.subregions.last().unwrap()
     }
 
     fn size(&self) -> Size {
@@ -898,6 +900,10 @@ impl Drawable for Overlay {
             return;
         }
         self.subregions.pop();
+    }
+
+    fn get_subregion(&self) -> Rect {
+        *self.subregions.last().unwrap()
     }
 
     fn size(&self) -> Size {
