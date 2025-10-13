@@ -743,6 +743,7 @@ pub trait Drawable {
     }
 }
 
+#[derive(Clone)]
 pub struct Buffer {
     pub(crate) data: Rc<RefCell<Vec<u8>>>,
     pub(crate) width: usize,
