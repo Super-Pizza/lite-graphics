@@ -101,6 +101,18 @@ impl Size {
     pub fn new(w: u32, h: u32) -> Self {
         Self { w, h }
     }
+    pub fn max(&self, rhs: Self) -> Self {
+        Self {
+            w: self.w.max(rhs.w),
+            h: self.h.max(rhs.h),
+        }
+    }
+    pub fn min(&self, rhs: Self) -> Self {
+        Self {
+            w: self.w.min(rhs.w),
+            h: self.h.min(rhs.h),
+        }
+    }
 }
 
 impl From<Size> for Rect {
